@@ -72,7 +72,7 @@ let
     # assembly if the analyser detected any *.s files.
     #
     # This is required for several popular packages (e.g. x/sys).
-    ifAsm = do: if sfiles == [] then "" else do;
+    ifAsm = do: lib.optionalString (sfiles != []) do;
     asmBuild = ifAsm ''
       ${go}/bin/go tool asm -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -gensymabis -o ./symabis ${spaceOut sfiles}
       ${go}/bin/go tool asm -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -o ./asm.o ${spaceOut sfiles}

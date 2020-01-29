@@ -85,7 +85,7 @@ in buildGo.program {
 
   | parameter | type         | use                                            | required? |
   |-----------|--------------|------------------------------------------------|-----------|
-  | `name`    | `string`     | Name of the library (and resulting executable) | yes       |
+  | `name`    | `string`     | Name of the library                            | yes       |
   | `srcs`    | `list<path>` | List of paths to source files                  | yes       |
   | `deps`    | `list<drv>`  | List of dependencies (i.e. other Go libraries) | no        |
   | `path`    | `string`     | Go import path for the resulting library       | no        |

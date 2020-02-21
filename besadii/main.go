@@ -60,7 +60,7 @@ type Manifest struct {
 func prepareManifest(commit string) string {
 	m := Manifest{
 		Image:   "nixos/latest",
-		Sources: []string{"https://git.camden.tazj.in/"},
+		Sources: []string{"https://git.tazj.in/"},
 
 		// secret for cachix/tazjin
 		Secrets: []string{"f7f02546-4d95-44f7-a98e-d61fdded8b5b"},

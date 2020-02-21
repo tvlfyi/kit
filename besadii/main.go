@@ -96,7 +96,9 @@ func triggerBuild(log *syslog.Writer, token, branch, commit string) {
 		Manifest: prepareManifest(commit),
 		Note:     fmt.Sprintf("Build of 'master' at '%s'", commit),
 		Tags: []string{
-			"depot", branch,
+			// my branch names tend to contain slashes, which are not valid
+			// identifiers in sourcehut.
+			"depot", strings.ReplaceAll(branch, "/", "_"),
 		},
 	}
 
@@ -122,8 +124,8 @@ func triggerBuild(log *syslog.Writer, token, branch, commit string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		respBody, err := ioutil.ReadAll(resp.Body)
-		log.Err(fmt.Sprintf("received non-success response from builds.sr.ht: %s (%v)[%s]", respBody, resp.Status, err))
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		log.Err(fmt.Sprintf("received non-success response from builds.sr.ht: %s (%v)", respBody, resp.Status))
 	} else {
 		fmt.Fprintf(log, "triggered builds.sr.ht job for branch '%s' at commit '%s'", branch, commit)
 	}
@@ -165,10 +167,10 @@ func main() {
 	// Before triggering builds, it is important that git
 	// update-server-info is run so that cgit correctly serves the
 	// repository.
-	err := exec.Command(gitBin, "update-server-info").Run()
+	err = exec.Command(gitBin, "update-server-info").Run()
 	if err != nil {
 		log.Alert("failed to run 'git update-server-info' for depot!")
-		os.Exit()
+		os.Exit(1)
 	}
 
 	token, err := ioutil.ReadFile("/etc/secrets/srht-token")

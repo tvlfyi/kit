@@ -14,7 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"log/syslog"
 	"net/http"
 	"os"
 	"strings"
@@ -88,7 +88,7 @@ cat built-paths | cachix push tazjin`},
 }
 
 // Trigger a build of a given branch & commit on builds.sr.ht
-func triggerBuild(token, branch, commit string) {
+func triggerBuild(log *syslog.Writer, token, branch, commit string) {
 	build := Build{
 		Manifest: prepareManifest(commit),
 		Note:     fmt.Sprintf("Build of 'master' at '%s'", commit),
@@ -102,7 +102,8 @@ func triggerBuild(token, branch, commit string) {
 
 	req, err := http.NewRequest("POST", "https://builds.sr.ht/api/jobs", reader)
 	if err != nil {
-		log.Fatalln("[ERROR] failed to create an HTTP request:", err)
+		log.Err(fmt.Sprintf("failed to create an HTTP request: %s", err))
+		os.Exit(1)
 	}
 
 	req.Header.Add("Authorization", token)
@@ -112,16 +113,16 @@ func triggerBuild(token, branch, commit string) {
 	if err != nil {
 		// This might indicate a temporary error on the sourcehut side, do
 		// not fail the whole program.
-		log.Println("failed to send builds.sr.ht request:", err)
+		log.Err(fmt.Sprintf("failed to send builds.sr.ht request:", err))
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		respBody, err := ioutil.ReadAll(resp.Body)
-		log.Printf("received non-success response from builds.sr.ht: %s (%v)[%s]", respBody, resp.Status, err)
+		log.Err(fmt.Sprintf("received non-success response from builds.sr.ht: %s (%v)[%s]", respBody, resp.Status, err))
 	} else {
-		log.Printf("triggered builds.sr.ht job for branch '%s' at commit '%s'", branch, commit)
+		fmt.Fprintf(log, "triggered builds.sr.ht job for branch '%s' at commit '%s'", branch, commit)
 	}
 }
 
@@ -152,19 +153,27 @@ func parseRefUpdates() ([]refUpdate, error) {
 }
 
 func main() {
+	log, err := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "besadii")
+	if err != nil {
+		fmt.Printf("failed to open syslog: %s\n", err)
+		os.Exit(1)
+	}
+
 	token, err := ioutil.ReadFile("/etc/secrets/srht-token")
 	if err != nil {
-		log.Fatalln("[ERROR] sourcehot token could not be read")
+		log.Alert("sourcehot token could not be read")
+		os.Exit(1)
 	}
 
 	updates, err := parseRefUpdates()
 	if err != nil {
-		log.Fatalln("[ERROR] could not parse updated refs:", err)
+		log.Err(fmt.Sprintf("could not parse updated refs:", err))
+		os.Exit(1)
 	}
 
-	log.Printf("triggering builds for %v refs", len(updates))
+	fmt.Fprintf(log, "triggering builds for %v refs", len(updates))
 
 	for _, update := range updates {
-		triggerBuild(string(token), update.name, update.new)
+		triggerBuild(log, string(token), update.name, update.new)
 	}
 }

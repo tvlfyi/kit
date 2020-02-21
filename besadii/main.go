@@ -151,10 +151,11 @@ func parseRefUpdates() ([]refUpdate, error) {
 		update := refUpdate{
 			old:  fragments[0],
 			new:  fragments[1],
-			name: strings.TrimPrefix(fragments[2], branchPrefix),
+			name: fragments[2],
 		}
 
 		if strings.HasPrefix(update.name, branchPrefix) && update.new != deletedBranch {
+			update.name = strings.TrimPrefix(update.name, branchPrefix)
 			updates = append(updates, update)
 		}
 	}

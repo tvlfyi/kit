@@ -94,7 +94,7 @@ cat built-paths | cachix push tazjin`},
 func triggerBuild(log *syslog.Writer, token, branch, commit string) {
 	build := Build{
 		Manifest: prepareManifest(commit),
-		Note:     fmt.Sprintf("Build of 'master' at '%s'", commit),
+		Note:     fmt.Sprintf("Build of '%s' at '%s'", branch, commit),
 		Tags: []string{
 			// my branch names tend to contain slashes, which are not valid
 			// identifiers in sourcehut.

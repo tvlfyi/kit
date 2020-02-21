@@ -17,8 +17,11 @@ import (
 	"log/syslog"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 )
+
+var gitBin = "git"
 
 // Represents an updated reference as passed to besadii by git
 //
@@ -106,7 +109,7 @@ func triggerBuild(log *syslog.Writer, token, branch, commit string) {
 		os.Exit(1)
 	}
 
-	req.Header.Add("Authorization", "token " + token)
+	req.Header.Add("Authorization", "token "+token)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -157,6 +160,15 @@ func main() {
 	if err != nil {
 		fmt.Printf("failed to open syslog: %s\n", err)
 		os.Exit(1)
+	}
+
+	// Before triggering builds, it is important that git
+	// update-server-info is run so that cgit correctly serves the
+	// repository.
+	err := exec.Command(gitBin, "update-server-info").Run()
+	if err != nil {
+		log.Alert("failed to run 'git update-server-info' for depot!")
+		os.Exit()
 	}
 
 	token, err := ioutil.ReadFile("/etc/secrets/srht-token")

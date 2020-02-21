@@ -143,10 +143,14 @@ func parseRefUpdates() ([]refUpdate, error) {
 			return nil, fmt.Errorf("invalid ref update: '%s'", line)
 		}
 
+		if !strings.HasPrefix(fragments[2], "refs/heads/") {
+			continue
+		}
+
 		updates = append(updates, refUpdate{
 			old:  fragments[0],
 			new:  fragments[1],
-			name: fragments[2],
+			name: strings.TrimPrefix(fragments[2], "refs/heads/"),
 		})
 	}
 

@@ -22,6 +22,11 @@ import (
 )
 
 var gitBin = "git"
+var branchPrefix = "refs/heads/"
+
+// This value is set by the git hook invocation when a branch is
+// removed, builds should not be triggered in that case.
+var deletedBranch = "0000000000000000000000000000000000000000"
 
 // Represents an updated reference as passed to besadii by git
 //
@@ -143,15 +148,15 @@ func parseRefUpdates() ([]refUpdate, error) {
 			return nil, fmt.Errorf("invalid ref update: '%s'", line)
 		}
 
-		if !strings.HasPrefix(fragments[2], "refs/heads/") {
-			continue
-		}
-
-		updates = append(updates, refUpdate{
+		update := refUpdate{
 			old:  fragments[0],
 			new:  fragments[1],
-			name: strings.TrimPrefix(fragments[2], "refs/heads/"),
-		})
+			name: strings.TrimPrefix(fragments[2], branchPrefix),
+		}
+
+		if strings.HasPrefix(update.name, branchPrefix) && update.new != deletedBranch {
+			updates = append(updates, update)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {

@@ -77,7 +77,7 @@ cat built-paths | cachix push tazjin`},
 }
 
 // Trigger a build of a given branch & commit on builds.sr.ht
-func triggerBuild(branch, commit string) {
+func triggerBuild(token, branch, commit string) {
 	build := Build{
 		Manifest: prepareManifest(commit),
 		Note:     fmt.Sprintf("Build of 'master' at '%s'", commit),
@@ -94,12 +94,7 @@ func triggerBuild(branch, commit string) {
 		log.Fatalln("[ERROR] failed to create an HTTP request:", err)
 	}
 
-	token := fmt.Sprintf("token %s", os.Getenv("SRHT_TOKEN"))
-	if token == "" {
-		log.Fatalln("[ERROR] sourcehut token is not set")
-	}
-
-	req.Header.Add("Authorization", )
+	req.Header.Add("Authorization", token)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -121,4 +116,9 @@ func triggerBuild(branch, commit string) {
 
 func main() {
 	triggerBuild("master", "c5806a44a728d5a46878f54de7b695321a38559c")
+	token, err := ioutil.ReadFile("/etc/secrets/srht-token")
+	if err != nil {
+		log.Fatalln("[ERROR] sourcehot token could not be read")
+	}
+
 }

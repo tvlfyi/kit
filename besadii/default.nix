@@ -5,4 +5,8 @@
 depot.buildGo.program {
   name = "besadii";
   srcs = [ ./main.go ];
+
+  x_defs = {
+    "main.gitBin" = "${depot.third_party.git}/bin/git";
+  };
 }

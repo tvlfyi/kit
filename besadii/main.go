@@ -9,6 +9,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -16,7 +17,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
+
+// Represents an updated reference as passed to besadii by git
+//
+// https://git-scm.com/docs/githooks#pre-receive
+type refUpdate struct {
+	name string
+	old  string
+	new  string
+}
 
 // Represents a builds.sr.ht build object as described on
 // https://man.sr.ht/builds.sr.ht/api.md
@@ -110,15 +121,50 @@ func triggerBuild(token, branch, commit string) {
 		respBody, err := ioutil.ReadAll(resp.Body)
 		log.Printf("received non-success response from builds.sr.ht: %s (%v)[%s]", respBody, resp.Status, err)
 	} else {
-		log.Println("triggered builds.sr.ht job for commit", commit)
+		log.Printf("triggered builds.sr.ht job for branch '%s' at commit '%s'", branch, commit)
 	}
 }
 
+func parseRefUpdates() ([]refUpdate, error) {
+	var updates []refUpdate
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fragments := strings.Split(line, " ")
+
+		if len(fragments) != 3 {
+			return nil, fmt.Errorf("invalid ref update: '%s'", line)
+		}
+
+		updates = append(updates, refUpdate{
+			old:  fragments[0],
+			new:  fragments[1],
+			name: fragments[2],
+		})
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return updates, nil
+}
+
 func main() {
-	triggerBuild("master", "c5806a44a728d5a46878f54de7b695321a38559c")
 	token, err := ioutil.ReadFile("/etc/secrets/srht-token")
 	if err != nil {
 		log.Fatalln("[ERROR] sourcehot token could not be read")
 	}
 
+	updates, err := parseRefUpdates()
+	if err != nil {
+		log.Fatalln("[ERROR] could not parse updated refs:", err)
+	}
+
+	log.Printf("triggering builds for %v refs", len(updates))
+
+	for _, update := range updates {
+		triggerBuild(string(token), update.name, update.new)
+	}
 }

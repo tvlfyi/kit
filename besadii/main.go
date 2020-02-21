@@ -94,12 +94,17 @@ func triggerBuild(branch, commit string) {
 		log.Fatalln("[ERROR] failed to create an HTTP request:", err)
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("token %s", os.Getenv("SRHT_TOKEN")))
+	token := fmt.Sprintf("token %s", os.Getenv("SRHT_TOKEN"))
+	if token == "" {
+		log.Fatalln("[ERROR] sourcehut token is not set")
+	}
+
+	req.Header.Add("Authorization", )
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		// This might indicate a temporary error on the SourceHut side, do
+		// This might indicate a temporary error on the sourcehut side, do
 		// not fail the whole program.
 		log.Println("failed to send builds.sr.ht request:", err)
 		return

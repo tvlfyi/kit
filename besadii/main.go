@@ -106,7 +106,7 @@ func triggerBuild(log *syslog.Writer, token, branch, commit string) {
 		os.Exit(1)
 	}
 
-	req.Header.Add("Authorization", token)
+	req.Header.Add("Authorization", "token " + token)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)

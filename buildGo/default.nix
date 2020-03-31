@@ -57,6 +57,7 @@ let
   in runCommand name {} ''
     ${go}/bin/go tool compile -o ${name}.a -trimpath=$PWD -trimpath=${go} ${includeSources uniqueDeps} ${spaceOut srcs}
     mkdir -p $out/bin
+    export GOROOT_FINAL=go
     ${go}/bin/go tool link -o $out/bin/${name} -buildid nix ${xFlags x_defs} ${includeLibs uniqueDeps} ${name}.a
   '';
 

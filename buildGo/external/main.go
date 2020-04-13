@@ -163,7 +163,7 @@ func main() {
 
 	goDirs, err := findGoDirs(*source)
 	if err != nil {
-		log.Fatalf("failed to walk source directory '%s': %s\n", source, err)
+		log.Fatalf("failed to walk source directory '%s': %s", *source, err)
 	}
 
 	all := []pkg{}

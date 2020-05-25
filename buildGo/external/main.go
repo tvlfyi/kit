@@ -44,6 +44,10 @@ func findGoDirs(at string) ([]string, error) {
 	dirSet := make(map[string]bool)
 
 	err := filepath.Walk(at, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		name := info.Name()
 		// Skip folders that are guaranteed to not be relevant
 		if info.IsDir() && (name == "testdata" || name == ".git") {

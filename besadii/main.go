@@ -65,7 +65,7 @@ type Manifest struct {
 func prepareManifest(commit string) string {
 	m := Manifest{
 		Image:   "nixos/latest",
-		Sources: []string{"https://git.tazj.in/"},
+		Sources: []string{"https://code.tvl.fyi/"},
 
 		// secret for cachix/tazjin
 		Secrets: []string{"f7f02546-4d95-44f7-a98e-d61fdded8b5b"},
@@ -74,15 +74,15 @@ func prepareManifest(commit string) string {
 			{"setup": `# sourcehut does not censor secrets in builds, hence this hack:
 echo -n 'export CACHIX_SIGNING_KEY=' >> ~/.buildenv
 cat ~/.cachix-tazjin >> ~/.buildenv
-nix-env -iA third_party.cachix -f git.tazj.in
+nix-env -iA third_party.cachix -f code.tvl.fyi
 cachix use tazjin
-cd git.tazj.in
+cd code.tvl.fyi
 git checkout ` + commit},
 
-			{"build": `cd git.tazj.in
+			{"build": `cd code.tvl.fyi
 nix-build ci-builds.nix > built-paths`},
 
-			{"cache": `cd git.tazj.in
+			{"cache": `cd code.tvl.fyi
 cat built-paths | cachix push tazjin`},
 		},
 

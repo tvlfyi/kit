@@ -1,40 +1,35 @@
-// Copyright 2019 Google LLC.
+// Copyright 2019-2020 Google LLC.
 // SPDX-License-Identifier: Apache-2.0
 //
 // besadii is a small CLI tool that triggers depot builds on
 // builds.sr.ht
 //
-// It is designed to run as a post-update git hook on the server
-// hosting the depot.
+// It is designed to run as a Gerrit hook (ref-updated).
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log/syslog"
 	"net/http"
 	"os"
-	"os/exec"
+	"path"
 	"strings"
 )
 
-var gitBin = "git"
 var branchPrefix = "refs/heads/"
 
-// This value is set by the git hook invocation when a branch is
-// removed, builds should not be triggered in that case.
-var deletedBranch = "0000000000000000000000000000000000000000"
-
-// Represents an updated reference as passed to besadii by git
+// Represents an updated branch, as passed to besadii by Gerrit.
 //
-// https://git-scm.com/docs/githooks#pre-receive
-type refUpdate struct {
-	name string
-	old  string
-	new  string
+// https://gerrit.googlesource.com/plugins/hooks/+/HEAD/src/main/resources/Documentation/hooks.md#ref_updated
+type branchUpdate struct {
+	project   string
+	branch    string
+	commit    string
+	submitter string
 }
 
 // Represents a builds.sr.ht build object as described on
@@ -45,8 +40,8 @@ type Build struct {
 	Tags     []string `json:"tags"`
 }
 
-// Represents a build trigger object as described on <the docs for
-// this are currently down>
+// Represents a build trigger object as described on
+// https://man.sr.ht/builds.sr.ht/triggers.md
 type Trigger struct {
 	Action    string `json:"action"`
 	Condition string `json:"condition"`
@@ -96,14 +91,14 @@ cat built-paths | cachix push tazjin`},
 }
 
 // Trigger a build of a given branch & commit on builds.sr.ht
-func triggerBuild(log *syslog.Writer, token, branch, commit string) {
+func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) {
 	build := Build{
-		Manifest: prepareManifest(commit),
-		Note:     fmt.Sprintf("Build of '%s' at '%s'", branch, commit),
+		Manifest: prepareManifest(update.commit),
+		Note:     fmt.Sprintf("build of %q at %q, submitted by %q", update.branch, update.commit, update.submitter),
 		Tags: []string{
 			// my branch names tend to contain slashes, which are not valid
 			// identifiers in sourcehut.
-			"depot", strings.ReplaceAll(branch, "/", "_"),
+			"depot", strings.ReplaceAll(update.branch, "/", "_"),
 		},
 	}
 
@@ -132,39 +127,52 @@ func triggerBuild(log *syslog.Writer, token, branch, commit string) {
 		respBody, _ := ioutil.ReadAll(resp.Body)
 		log.Err(fmt.Sprintf("received non-success response from builds.sr.ht: %s (%v)", respBody, resp.Status))
 	} else {
-		fmt.Fprintf(log, "triggered builds.sr.ht job for branch '%s' at commit '%s'", branch, commit)
+		fmt.Fprintf(log, "triggered builds.sr.ht job for branch %q at commit %q", update.branch, update.commit)
 	}
 }
 
-func parseRefUpdates() ([]refUpdate, error) {
-	var updates []refUpdate
-
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		line := scanner.Text()
-		fragments := strings.Split(line, " ")
-
-		if len(fragments) != 3 {
-			return nil, fmt.Errorf("invalid ref update: '%s'", line)
-		}
-
-		update := refUpdate{
-			old:  fragments[0],
-			new:  fragments[1],
-			name: fragments[2],
-		}
-
-		if strings.HasPrefix(update.name, branchPrefix) && update.new != deletedBranch {
-			update.name = strings.TrimPrefix(update.name, branchPrefix)
-			updates = append(updates, update)
-		}
+func branchUpdateFromFlags() (*branchUpdate, error) {
+	if path.Base(os.Args[0]) != "ref-updated" {
+		return nil, fmt.Errorf("besadii must be invoked as the 'ref-updated' hook")
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	var update branchUpdate
+
+	flag.StringVar(&update.project, "project", "", "Gerrit project")
+	flag.StringVar(&update.commit, "newrev", "", "new revision")
+	flag.StringVar(&update.submitter, "submitter-username", "", "Submitter username")
+	ref := flag.String("refname", "", "updated reference name")
+
+	// Gerrit passes more flags than we want, but Rob Pike decided[0] in
+	// 2013 that the Go art project will not allow users to ignore flags
+	// because he "doesn't like it". The following code ignores the
+	// flags.
+	//
+	// [0]: https://github.com/golang/go/issues/6112#issuecomment-66083768
+	var _old, _submitter string
+	flag.StringVar(&_old, "oldrev", "", "")
+	flag.StringVar(&_submitter, "submitter", "", "")
+
+	flag.Parse()
+
+	if update.project == "" || *ref == "" || update.commit == "" || update.submitter == "" {
+		// If we get here, the user is probably being a dummy and invoking
+		// this manually - but incorrectly.
+		return nil, fmt.Errorf("'ref-updated' hook invoked without required arguments")
 	}
 
-	return updates, nil
+	if update.project != "depot" {
+		// this is not an error, but also not something we handle.
+		return nil, nil
+	}
+
+	if !strings.HasPrefix(*ref, branchPrefix) {
+		return nil, fmt.Errorf("besadii only supports branch updates at the moment")
+	}
+
+	update.branch = strings.TrimPrefix(*ref, branchPrefix)
+
+	return &update, nil
 }
 
 func main() {
@@ -174,30 +182,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Before triggering builds, it is important that git
-	// update-server-info is run so that cgit correctly serves the
-	// repository.
-	err = exec.Command(gitBin, "update-server-info").Run()
-	if err != nil {
-		log.Alert("failed to run 'git update-server-info' for depot!")
-		os.Exit(1)
-	}
-
 	token, err := ioutil.ReadFile("/etc/secrets/srht-token")
 	if err != nil {
 		log.Alert("sourcehot token could not be read")
 		os.Exit(1)
 	}
 
-	updates, err := parseRefUpdates()
+	update, err := branchUpdateFromFlags()
 	if err != nil {
-		log.Err(fmt.Sprintf("could not parse updated refs:", err))
+		log.Err(fmt.Sprintf("failed to parse ref update: %s", err))
 		os.Exit(1)
 	}
 
-	fmt.Fprintf(log, "triggering builds for %v refs", len(updates))
-
-	for _, update := range updates {
-		triggerBuild(log, string(token), update.name, update.new)
+	if update == nil { // the project was not 'depot'
+		os.Exit(0)
 	}
+
+	triggerBuild(log, string(token), update)
 }

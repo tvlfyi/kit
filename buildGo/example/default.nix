@@ -8,7 +8,7 @@
 # users a quick introduction to how to use buildGo.
 
 let
-  buildGo = import ../buildGo.nix {};
+  buildGo = import ../default.nix {};
 
   # Example use of buildGo.package, which creates an importable Go
   # package from the specified source files.

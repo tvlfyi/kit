@@ -2,7 +2,7 @@
 # sourcehut.
 { depot, ... }:
 
-depot.buildGo.program {
+depot.nix.buildTypedGo.program {
   name = "besadii";
-  srcs = [ ./main.go ];
+  srcs = [ ./main.go2 ];
 }

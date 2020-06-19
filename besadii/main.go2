@@ -1,10 +1,11 @@
 // Copyright 2019-2020 Google LLC.
 // SPDX-License-Identifier: Apache-2.0
 //
-// besadii is a small CLI tool that triggers depot builds on
-// builds.sr.ht
+// besadii is a small CLI tool that runs as a Gerrit hook (currently
+// 'ref-updated') to trigger various actions:
 //
-// It is designed to run as a Gerrit hook (ref-updated).
+// - sr.ht CI builds
+// - SourceGraph (cs.tvl.fyi) repository index updates
 package main
 
 import (
@@ -91,7 +92,7 @@ cat built-paths | cachix push tazjin`},
 }
 
 // Trigger a build of a given branch & commit on builds.sr.ht
-func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) {
+func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) error {
 	build := Build{
 		Manifest: prepareManifest(update.commit),
 		Note:     fmt.Sprintf("build of %q at %q, submitted by %q", update.branch, update.commit, update.submitter),
@@ -107,8 +108,7 @@ func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) {
 
 	req, err := http.NewRequest("POST", "https://builds.sr.ht/api/jobs", reader)
 	if err != nil {
-		log.Err(fmt.Sprintf("failed to create an HTTP request: %s", err))
-		os.Exit(1)
+		return fmt.Errorf("failed to create an HTTP request: %w", err)
 	}
 
 	req.Header.Add("Authorization", "token "+token)
@@ -116,10 +116,8 @@ func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		// This might indicate a temporary error on the sourcehut side, do
-		// not fail the whole program.
-		log.Err(fmt.Sprintf("failed to send builds.sr.ht request:", err))
-		return
+		// This might indicate a temporary error on the sourcehut side.
+		return fmt.Errorf("failed to send builds.sr.ht request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -129,6 +127,23 @@ func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) {
 	} else {
 		fmt.Fprintf(log, "triggered builds.sr.ht job for branch %q at commit %q", update.branch, update.commit)
 	}
+
+	return nil
+}
+
+// Trigger a Sourcegraph repository index update on cs.tvl.fyi.
+//
+// https://docs.sourcegraph.com/admin/repo/webhooks
+func triggerIndexUpdate(token string) error {
+	req, err := http.NewRequest("POST", "https://cs.tvl.fyi/.api/repos/depot/-/refresh", nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Authorization", "token "+token)
+
+	_, err = http.DefaultClient.Do(req)
+	return err
 }
 
 func branchUpdateFromFlags() (*branchUpdate, error) {
@@ -182,9 +197,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	token, err := ioutil.ReadFile("/etc/secrets/srht-token")
+	srhtToken, err := ioutil.ReadFile("/etc/secrets/srht-token")
 	if err != nil {
-		log.Alert("sourcehot token could not be read")
+		log.Alert("sourcehut token could not be read")
+		os.Exit(1)
+	}
+
+	sourcegraphToken, err := ioutil.ReadFile("/etc/secrets/sourcegraph-token")
+	if err != nil {
+		log.Alert("sourcegraph token could not be read")
 		os.Exit(1)
 	}
 
@@ -198,5 +219,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	triggerBuild(log, string(token), update)
+	err = triggerBuild(log, string(srhtToken), update)
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to trigger sr.ht build: %s", err))
+	}
+
+	err = triggerIndexUpdate(string(sourcegraphToken))
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to trigger sourcegraph index update: %s", err))
+	}
 }

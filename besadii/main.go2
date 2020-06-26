@@ -23,6 +23,11 @@ import (
 
 var branchPrefix = "refs/heads/"
 
+// TargetList is a path to the file containing the list of build
+// targets in the depot, as a JSON array of strings. This is populated
+// by the Nix build.
+var TargetList string
+
 // Represents an updated branch, as passed to besadii by Gerrit.
 //
 // https://gerrit.googlesource.com/plugins/hooks/+/HEAD/src/main/resources/Documentation/hooks.md#ref_updated
@@ -58,27 +63,27 @@ type Manifest struct {
 	Triggers []Trigger             `json:"triggers"`
 }
 
-func prepareManifest(commit string) string {
+func prepareManifest(commit, target string) string {
 	m := Manifest{
 		Image:   "nixos/latest",
-		Sources: []string{"https://code.tvl.fyi/"},
+		Sources: []string{"https://cl.tvl.fyi/depot"},
 
-		// secret for cachix/tazjin
+		// ID of the secret for cachix/tazjin
 		Secrets: []string{"f7f02546-4d95-44f7-a98e-d61fdded8b5b"},
 
 		Tasks: [](map[string]string){
 			{"setup": `# sourcehut does not censor secrets in builds, hence this hack:
 echo -n 'export CACHIX_SIGNING_KEY=' >> ~/.buildenv
 cat ~/.cachix-tazjin >> ~/.buildenv
-nix-env -iA third_party.cachix -f code.tvl.fyi
+nix-env -iA third_party.cachix -f depot
 cachix use tazjin
-cd code.tvl.fyi
+cd depot
 git checkout ` + commit},
 
-			{"build": `cd code.tvl.fyi
-nix-build ci-builds.nix > built-paths`},
+			{"build": fmt.Sprintf(`cd depot
+nix-build -A ciBuilds.%s > built-paths`, target)},
 
-			{"cache": `cd code.tvl.fyi
+			{"cache": `cd depot
 cat built-paths | cachix push tazjin`},
 		},
 
@@ -92,14 +97,16 @@ cat built-paths | cachix push tazjin`},
 }
 
 // Trigger a build of a given branch & commit on builds.sr.ht
-func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) error {
+func triggerBuild(log *syslog.Writer, token string, update *branchUpdate, target string) error {
 	build := Build{
-		Manifest: prepareManifest(update.commit),
-		Note:     fmt.Sprintf("build of %q at %q, submitted by %q", update.branch, update.commit, update.submitter),
+		Manifest: prepareManifest(update.commit, target),
+		Note:     fmt.Sprintf("build of target set %q on %q at %q, submitted by %q", target, update.branch, update.commit, update.submitter),
 		Tags: []string{
-			// my branch names tend to contain slashes, which are not valid
+			"depot",
+			// our branch names tend to contain slashes, which are not valid
 			// identifiers in sourcehut.
-			"depot", strings.ReplaceAll(update.branch, "/", "_"),
+			strings.ReplaceAll(update.branch, "/", "_"),
+			target,
 		},
 	}
 
@@ -190,10 +197,36 @@ func branchUpdateFromFlags() (*branchUpdate, error) {
 	return &update, nil
 }
 
+func loadBuildTargets() ([]string, error) {
+	if TargetList == "" {
+		return nil, fmt.Errorf("target list file was not set!")
+	}
+
+	var targets []string
+	raw, err := ioutil.ReadFile(TargetList)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to read build targets: %w", err)
+	}
+
+	err = json.Unmarshal(raw, &targets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal build targets: %w", err)
+	}
+
+	return targets, nil
+}
+
 func main() {
 	log, err := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "besadii")
 	if err != nil {
 		fmt.Printf("failed to open syslog: %s\n", err)
+		os.Exit(1)
+	}
+
+	targets, err := loadBuildTargets()
+	if err != nil {
+		log.Alert(fmt.Sprintf("failed to load build targets: %s", err))
 		os.Exit(1)
 	}
 
@@ -219,13 +252,16 @@ func main() {
 		os.Exit(0)
 	}
 
-	err = triggerBuild(log, string(srhtToken), update)
-	if err != nil {
-		log.Err(fmt.Sprintf("failed to trigger sr.ht build: %s", err))
+	for _, target := range targets {
+		err = triggerBuild(log, string(srhtToken), update, target)
+		if err != nil {
+			log.Err(fmt.Sprintf("failed to trigger sr.ht build: %s", err))
+		}
 	}
 
 	err = triggerIndexUpdate(string(sourcegraphToken))
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to trigger sourcegraph index update: %s", err))
 	}
+	log.Info("triggered sourcegraph index update")
 }

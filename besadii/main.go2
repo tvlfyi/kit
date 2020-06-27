@@ -4,7 +4,7 @@
 // besadii is a small CLI tool that runs as a Gerrit hook (currently
 // 'ref-updated') to trigger various actions:
 //
-// - sr.ht CI builds
+// - Buildkite CI builds
 // - SourceGraph (cs.tvl.fyi) repository index updates
 package main
 
@@ -23,11 +23,6 @@ import (
 
 var branchPrefix = "refs/heads/"
 
-// TargetList is a path to the file containing the list of build
-// targets in the depot, as a JSON array of strings. This is populated
-// by the Nix build.
-var TargetList string
-
 // Represents an updated branch, as passed to besadii by Gerrit.
 //
 // https://gerrit.googlesource.com/plugins/hooks/+/HEAD/src/main/resources/Documentation/hooks.md#ref_updated
@@ -36,103 +31,58 @@ type branchUpdate struct {
 	branch    string
 	commit    string
 	submitter string
+	email     string
 }
 
-// Represents a builds.sr.ht build object as described on
-// https://man.sr.ht/builds.sr.ht/api.md
+type Author struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// Build is the representation of a Buildkite build as described on
+// https://buildkite.com/docs/apis/rest-api/builds#create-a-build
 type Build struct {
-	Manifest string   `json:"manifest"`
-	Note     string   `json:"note"`
-	Tags     []string `json:"tags"`
+	Commit  string `json:"commit"`
+	Branch  string `json:"branch"`
+	Message string `json:"message"`
+	Author  Author `json:"author"`
 }
 
-// Represents a build trigger object as described on
-// https://man.sr.ht/builds.sr.ht/triggers.md
-type Trigger struct {
-	Action    string `json:"action"`
-	Condition string `json:"condition"`
-	To        string `json:"to"`
-}
-
-// Represents a build manifest for sourcehut.
-type Manifest struct {
-	Image    string                `json:"image"`
-	Sources  []string              `json:"sources"`
-	Secrets  []string              `json:"secrets"`
-	Tasks    [](map[string]string) `json:"tasks"`
-	Triggers []Trigger             `json:"triggers"`
-}
-
-func prepareManifest(commit, target string) string {
-	m := Manifest{
-		Image:   "nixos/latest",
-		Sources: []string{"https://cl.tvl.fyi/depot"},
-
-		// ID of the secret for cachix/tazjin
-		Secrets: []string{"f7f02546-4d95-44f7-a98e-d61fdded8b5b"},
-
-		Tasks: [](map[string]string){
-			{"setup": `# sourcehut does not censor secrets in builds, hence this hack:
-echo -n 'export CACHIX_SIGNING_KEY=' >> ~/.buildenv
-cat ~/.cachix-tazjin >> ~/.buildenv
-nix-env -iA third_party.cachix -f depot
-cachix use tazjin
-cd depot
-git checkout ` + commit},
-
-			{"build": fmt.Sprintf(`cd depot
-nix-build -A ciBuilds.%s > built-paths`, target)},
-
-			{"cache": `cd depot
-cat built-paths | cachix push tazjin`},
-		},
-
-		Triggers: []Trigger{
-			Trigger{Action: "email", Condition: "failure", To: "mail@tazj.in"},
-		},
-	}
-
-	j, _ := json.Marshal(m)
-	return string(j)
-}
-
-// Trigger a build of a given branch & commit on builds.sr.ht
-func triggerBuild(log *syslog.Writer, token string, update *branchUpdate, target string) error {
+// Trigger a build of a given branch & commit on Buildkite
+func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) error {
 	build := Build{
-		Manifest: prepareManifest(update.commit, target),
-		Note:     fmt.Sprintf("build of target set %q on %q at %q, submitted by %q", target, update.branch, update.commit, update.submitter),
-		Tags: []string{
-			"depot",
-			// our branch names tend to contain slashes, which are not valid
-			// identifiers in sourcehut.
-			strings.ReplaceAll(update.branch, "/", "_"),
-			target,
+		Commit:  update.commit,
+		Branch:  update.branch,
+		Message: fmt.Sprintf("Build of %q branch %q at %q", update.project, update.branch, update.commit),
+		Author: Author{
+			Name:  update.submitter,
+			Email: update.email,
 		},
 	}
 
 	body, _ := json.Marshal(build)
 	reader := ioutil.NopCloser(bytes.NewReader(body))
 
-	req, err := http.NewRequest("POST", "https://builds.sr.ht/api/jobs", reader)
+	req, err := http.NewRequest("POST", "https://api.buildkite.com/v2/organizations/tvl/pipelines/depot/builds", reader)
 	if err != nil {
 		return fmt.Errorf("failed to create an HTTP request: %w", err)
 	}
 
-	req.Header.Add("Authorization", "token "+token)
+	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		// This might indicate a temporary error on the sourcehut side.
-		return fmt.Errorf("failed to send builds.sr.ht request: %w", err)
+		// This might indicate a temporary error on the Buildkite side.
+		return fmt.Errorf("failed to send Buildkite request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != 201 {
 		respBody, _ := ioutil.ReadAll(resp.Body)
-		log.Err(fmt.Sprintf("received non-success response from builds.sr.ht: %s (%v)", respBody, resp.Status))
+		log.Err(fmt.Sprintf("received non-success response from Buildkite: %s (%v)", respBody, resp.Status))
 	} else {
-		fmt.Fprintf(log, "triggered builds.sr.ht job for branch %q at commit %q", update.branch, update.commit)
+		fmt.Fprintf(log, "triggered Buildkite build for branch %q at commit %q", update.branch, update.commit)
 	}
 
 	return nil
@@ -162,6 +112,7 @@ func branchUpdateFromFlags() (*branchUpdate, error) {
 
 	flag.StringVar(&update.project, "project", "", "Gerrit project")
 	flag.StringVar(&update.commit, "newrev", "", "new revision")
+	flag.StringVar(&update.email, "submitter", "", "Submitter email")
 	flag.StringVar(&update.submitter, "submitter-username", "", "Submitter username")
 	ref := flag.String("refname", "", "updated reference name")
 
@@ -171,9 +122,8 @@ func branchUpdateFromFlags() (*branchUpdate, error) {
 	// flags.
 	//
 	// [0]: https://github.com/golang/go/issues/6112#issuecomment-66083768
-	var _old, _submitter string
+	var _old string
 	flag.StringVar(&_old, "oldrev", "", "")
-	flag.StringVar(&_submitter, "submitter", "", "")
 
 	flag.Parse()
 
@@ -197,26 +147,6 @@ func branchUpdateFromFlags() (*branchUpdate, error) {
 	return &update, nil
 }
 
-func loadBuildTargets() ([]string, error) {
-	if TargetList == "" {
-		return nil, fmt.Errorf("target list file was not set!")
-	}
-
-	var targets []string
-	raw, err := ioutil.ReadFile(TargetList)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to read build targets: %w", err)
-	}
-
-	err = json.Unmarshal(raw, &targets)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal build targets: %w", err)
-	}
-
-	return targets, nil
-}
-
 func main() {
 	log, err := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "besadii")
 	if err != nil {
@@ -224,21 +154,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	targets, err := loadBuildTargets()
+	buildkiteToken, err := ioutil.ReadFile("/etc/secrets/buildkite-besadii")
 	if err != nil {
-		log.Alert(fmt.Sprintf("failed to load build targets: %s", err))
-		os.Exit(1)
-	}
-
-	srhtToken, err := ioutil.ReadFile("/etc/secrets/srht-token")
-	if err != nil {
-		log.Alert("sourcehut token could not be read")
+		log.Alert(fmt.Sprintf("buildkite token could not be read: %s", err))
 		os.Exit(1)
 	}
 
 	sourcegraphToken, err := ioutil.ReadFile("/etc/secrets/sourcegraph-token")
 	if err != nil {
-		log.Alert("sourcegraph token could not be read")
+		log.Alert(fmt.Sprintf("sourcegraph token could not be read: %s", err))
 		os.Exit(1)
 	}
 
@@ -252,11 +176,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	for _, target := range targets {
-		err = triggerBuild(log, string(srhtToken), update, target)
-		if err != nil {
-			log.Err(fmt.Sprintf("failed to trigger sr.ht build: %s", err))
-		}
+	err = triggerBuild(log, string(buildkiteToken), update)
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to trigger Buildkite build: %s", err))
 	}
 
 	err = triggerIndexUpdate(string(sourcegraphToken))

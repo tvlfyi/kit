@@ -23,10 +23,11 @@ import (
 
 var branchPrefix = "refs/heads/"
 
-// Represents an updated branch, as passed to besadii by Gerrit.
+// refUpdated is a struct representing the information passed to
+// besadii when it is invoked as Gerrit's refUpdated hook.
 //
 // https://gerrit.googlesource.com/plugins/hooks/+/HEAD/src/main/resources/Documentation/hooks.md#ref_updated
-type branchUpdate struct {
+type refUpdated struct {
 	project   string
 	branch    string
 	commit    string
@@ -49,7 +50,7 @@ type Build struct {
 }
 
 // Trigger a build of a given branch & commit on Buildkite
-func triggerBuild(log *syslog.Writer, token string, update *branchUpdate) error {
+func triggerBuild(log *syslog.Writer, token string, update *refUpdated) error {
 	build := Build{
 		Commit:  update.commit,
 		Branch:  update.branch,
@@ -103,12 +104,12 @@ func triggerIndexUpdate(token string) error {
 	return err
 }
 
-func branchUpdateFromFlags() (*branchUpdate, error) {
+func refUpdatedFromFlags() (*refUpdated, error) {
 	if path.Base(os.Args[0]) != "ref-updated" {
 		return nil, fmt.Errorf("besadii must be invoked as the 'ref-updated' hook")
 	}
 
-	var update branchUpdate
+	var update refUpdated
 
 	flag.StringVar(&update.project, "project", "", "Gerrit project")
 	flag.StringVar(&update.commit, "newrev", "", "new revision")
@@ -139,7 +140,7 @@ func branchUpdateFromFlags() (*branchUpdate, error) {
 	}
 
 	if !strings.HasPrefix(*ref, branchPrefix) {
-		return nil, fmt.Errorf("besadii only supports branch updates at the moment")
+		return nil, fmt.Errorf("besadii only supports branch updates at the moment (got %q)", *ref)
 	}
 
 	update.branch = strings.TrimPrefix(*ref, branchPrefix)
@@ -166,7 +167,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	update, err := branchUpdateFromFlags()
+	update, err := refUpdatedFromFlags()
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to parse ref update: %s", err))
 		os.Exit(1)

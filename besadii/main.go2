@@ -18,10 +18,11 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strings"
+	"regexp"
 )
 
-var branchPrefix = "refs/heads/"
+var branchRegexp = regexp.MustCompile(`^refs/heads/(.*)$`)
+var patchsetRegexp = regexp.MustCompile(`^refs/changes/\d{0,2}/(\d+)/(\d+)$`)
 
 // refUpdated is a struct representing the information passed to
 // besadii when it is invoked as Gerrit's refUpdated hook.
@@ -29,10 +30,13 @@ var branchPrefix = "refs/heads/"
 // https://gerrit.googlesource.com/plugins/hooks/+/HEAD/src/main/resources/Documentation/hooks.md#ref_updated
 type refUpdated struct {
 	project   string
-	branch    string
+	ref       string
 	commit    string
 	submitter string
 	email     string
+
+	changeId *string
+	patchset *string
 }
 
 type Author struct {
@@ -51,10 +55,18 @@ type Build struct {
 
 // Trigger a build of a given branch & commit on Buildkite
 func triggerBuild(log *syslog.Writer, token string, update *refUpdated) error {
+	var message string
+
+	if update.changeId != nil && update.patchset != nil {
+		message = fmt.Sprintf(":llama: depot @ https://cl.tvl.fyi/c/depot/+/%s/%s", *update.changeId, *update.patchset)
+	} else {
+		message = fmt.Sprintf(":llama: depot @ %s", update.commit)
+	}
+
 	build := Build{
 		Commit:  update.commit,
-		Branch:  update.branch,
-		Message: fmt.Sprintf("Build of %q branch %q at %q", update.project, update.branch, update.commit),
+		Branch:  update.ref,
+		Message: message,
 		Author: Author{
 			Name:  update.submitter,
 			Email: update.email,
@@ -83,7 +95,7 @@ func triggerBuild(log *syslog.Writer, token string, update *refUpdated) error {
 		respBody, _ := ioutil.ReadAll(resp.Body)
 		log.Err(fmt.Sprintf("received non-success response from Buildkite: %s (%v)", respBody, resp.Status))
 	} else {
-		fmt.Fprintf(log, "triggered Buildkite build for branch %q at commit %q", update.branch, update.commit)
+		fmt.Fprintf(log, "triggered Buildkite build for ref %q at commit %q", update.ref, update.commit)
 	}
 
 	return nil
@@ -115,7 +127,7 @@ func refUpdatedFromFlags() (*refUpdated, error) {
 	flag.StringVar(&update.commit, "newrev", "", "new revision")
 	flag.StringVar(&update.email, "submitter", "", "Submitter email")
 	flag.StringVar(&update.submitter, "submitter-username", "", "Submitter username")
-	ref := flag.String("refname", "", "updated reference name")
+	flag.StringVar(&update.ref, "refname", "", "updated reference name")
 
 	// Gerrit passes more flags than we want, but Rob Pike decided[0] in
 	// 2013 that the Go art project will not allow users to ignore flags
@@ -128,7 +140,7 @@ func refUpdatedFromFlags() (*refUpdated, error) {
 
 	flag.Parse()
 
-	if update.project == "" || *ref == "" || update.commit == "" || update.submitter == "" {
+	if update.project == "" || update.ref == "" || update.commit == "" || update.submitter == "" {
 		// If we get here, the user is probably being a dummy and invoking
 		// this manually - but incorrectly.
 		return nil, fmt.Errorf("'ref-updated' hook invoked without required arguments")
@@ -139,13 +151,18 @@ func refUpdatedFromFlags() (*refUpdated, error) {
 		return nil, nil
 	}
 
-	if !strings.HasPrefix(*ref, branchPrefix) {
-		return nil, fmt.Errorf("besadii only supports branch updates at the moment (got %q)", *ref)
+	if branchRegexp.MatchString(update.ref) {
+		// branches don't need special handling -> just move on
+		return &update, nil
 	}
 
-	update.branch = strings.TrimPrefix(*ref, branchPrefix)
+	if matches := patchsetRegexp.FindStringSubmatch(update.ref); matches != nil {
+		update.changeId = &matches[1]
+		update.patchset = &matches[2]
+		return &update, nil
+	}
 
-	return &update, nil
+	return nil, fmt.Errorf("besadii does not support updates for this type of ref (%q)", update.ref)
 }
 
 func main() {

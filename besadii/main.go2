@@ -1,11 +1,17 @@
 // Copyright 2019-2020 Google LLC.
 // SPDX-License-Identifier: Apache-2.0
 //
-// besadii is a small CLI tool that runs as a Gerrit hook (currently
-// 'ref-updated') to trigger various actions:
+// besadii is a small CLI tool that is invoked as a hook by various
+// programs to cause CI-related actions.
 //
-// - Buildkite CI builds
-// - SourceGraph (cs.tvl.fyi) repository index updates
+// It supports the following modes & operations:
+//
+// Gerrit (ref-updated) hook:
+// - Trigger Buildkite CI builds
+// - Trigger SourceGraph (cs.tvl.fyi) repository index updates
+//
+// Buildkite (post-command) hook:
+// - Submit CL verification status back to Gerrit
 package main
 
 import (
@@ -122,10 +128,6 @@ func triggerIndexUpdate(token string) error {
 }
 
 func refUpdatedFromFlags() (*refUpdated, error) {
-	if path.Base(os.Args[0]) != "ref-updated" {
-		return nil, fmt.Errorf("besadii must be invoked as the 'ref-updated' hook")
-	}
-
 	var update refUpdated
 
 	flag.StringVar(&update.project, "project", "", "Gerrit project")
@@ -170,11 +172,25 @@ func refUpdatedFromFlags() (*refUpdated, error) {
 	return nil, fmt.Errorf("besadii does not support updates for this type of ref (%q)", update.ref)
 }
 
-func main() {
+func refUpdatedMain() {
+	// Logging happens in syslog for Gerrit hooks because we don't want
+	// the hook output to be intermingled with Gerrit's own output
+	// stream
 	log, err := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "besadii")
 	if err != nil {
-		fmt.Printf("failed to open syslog: %s\n", err)
+		fmt.Fprintf(os.Stderr, "failed to open syslog: %s\n", err)
 		os.Exit(1)
+	}
+
+	update, err := refUpdatedFromFlags()
+	if err != nil {
+		log.Err(fmt.Sprintf("failed to parse ref update: %s", err))
+		os.Exit(1)
+	}
+
+	if update == nil { // the project was not 'depot'
+		log.Err("build triggers are only supported for the 'depot' project")
+		os.Exit(0)
 	}
 
 	buildkiteToken, err := ioutil.ReadFile("/etc/secrets/buildkite-besadii")
@@ -189,16 +205,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	update, err := refUpdatedFromFlags()
-	if err != nil {
-		log.Err(fmt.Sprintf("failed to parse ref update: %s", err))
-		os.Exit(1)
-	}
-
-	if update == nil { // the project was not 'depot'
-		os.Exit(0)
-	}
-
 	err = triggerBuild(log, string(buildkiteToken), update)
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to trigger Buildkite build: %s", err))
@@ -209,4 +215,97 @@ func main() {
 		log.Err(fmt.Sprintf("failed to trigger sourcegraph index update: %s", err))
 	}
 	log.Info("triggered sourcegraph index update")
+}
+
+// reviewInput is a struct representing the data submitted to Gerrit
+// to post a review on a CL.
+//
+// https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#review-input
+type reviewInput struct {
+	Message               string         `json:"message"`
+	Labels                map[string]int `json:"labels"`
+	OmitDuplicateComments bool           `json:"omit_duplicate_comments"`
+}
+
+func postCommandMain() {
+	changeId := os.Getenv("GERRIT_CHANGE_ID")
+	patchset := os.Getenv("GERRIT_PATCHSET")
+
+	if changeId == "" || patchset == "" {
+		// If these variables are unset, but the hook was invoked, the
+		// build was most likely for a branch and not for a CL - no status
+		// needs to be reported back to Gerrit!
+		fmt.Println("This isn't a CL build, nothing to do. Have a nice day!")
+		return
+	}
+
+	if os.Getenv("BUILDKITE_LABEL") != ":duck:" {
+		// this is not the build stage, don't do anything.
+		return
+	}
+
+	gerritPassword, err := ioutil.ReadFile("/etc/secrets/buildkite-gerrit")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Gerrit password could not be read: %s", err)
+		os.Exit(1)
+	}
+
+	var verified int
+	var verb string
+
+	if os.Getenv("BUILDKITE_COMMAND_EXIT_STATUS") == "0" {
+		verified = 1 // Verified: +1 in Gerrit
+		verb = "passed"
+	} else {
+		verified = -1
+		verb = "failed"
+	}
+
+	msg := fmt.Sprintf("Build of patchset %s %s: %s", patchset, verb, os.Getenv("BUILDKITE_BUILD_URL"))
+	review := reviewInput{
+		Message:               msg,
+		OmitDuplicateComments: true,
+		Labels: map[string]int{
+			"Verified": verified,
+		},
+	}
+
+	body, _ := json.Marshal(review)
+	reader := ioutil.NopCloser(bytes.NewReader(body))
+
+	url := fmt.Sprintf("https://cl.tvl.fyi/a/changes/%s/revisions/%s/review", changeId, patchset)
+	req, err := http.NewRequest("POST", url, reader)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create an HTTP request: %w", err)
+		os.Exit(1)
+	}
+
+	req.SetBasicAuth("buildkite", string(gerritPassword))
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Errorf("failed to update CL on Gerrit: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		fmt.Fprintf(os.Stderr, "received non-success response from Gerrit: %s (%v)", respBody, resp.Status)
+	} else {
+		fmt.Printf("Updated CI status on https://cl.tvl.fyi/c/depot/+/%s/%s", changeId, patchset)
+	}
+}
+
+func main() {
+	bin := path.Base(os.Args[0])
+
+	if bin == "ref-updated" {
+		refUpdatedMain()
+	} else if bin == "post-command" {
+		postCommandMain()
+	} else {
+		fmt.Fprintf(os.Stderr, "besadii does not know how to be invoked as %q, sorry!", bin)
+		os.Exit(1)
+	}
 }

@@ -267,6 +267,13 @@ func postCommandMain() {
 		OmitDuplicateComments: true,
 		Labels: map[string]int{
 			"Verified": verified,
+			// TODO(tazjin): The Code-Review label is only used here
+			// temporarily, as our build rules do not check for 'Verified'
+			// right now (because CI doesn't run 24/7).
+			//
+			// Having a Code-Review label lets us signal the build status on
+			// the review, but without having to always require it.
+			"Code-Review": verified,
 		},
 	}
 

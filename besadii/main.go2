@@ -28,6 +28,7 @@ import (
 )
 
 var branchRegexp = regexp.MustCompile(`^refs/heads/(.*)$`)
+var metaRegexp = regexp.MustCompile(`^refs/changes/\d{0,2}/(\d+)/meta$`)
 var patchsetRegexp = regexp.MustCompile(`^refs/changes/\d{0,2}/(\d+)/(\d+)$`)
 
 // refUpdated is a struct representing the information passed to
@@ -158,8 +159,8 @@ func refUpdatedFromFlags() (*refUpdated, error) {
 		return nil, nil
 	}
 
-	if branchRegexp.MatchString(update.ref) {
-		// branches don't need special handling -> just move on
+	if branchRegexp.MatchString(update.ref) || metaRegexp.MatchString(update.ref) {
+		// these refs don't need special handling, just move on
 		return &update, nil
 	}
 

@@ -154,12 +154,12 @@ func refUpdatedFromFlags() (*refUpdated, error) {
 		return nil, fmt.Errorf("'ref-updated' hook invoked without required arguments")
 	}
 
-	if update.project != "depot" {
+	if update.project != "depot" || metaRegexp.MatchString(update.ref) {
 		// this is not an error, but also not something we handle.
 		return nil, nil
 	}
 
-	if branchRegexp.MatchString(update.ref) || metaRegexp.MatchString(update.ref) {
+	if branchRegexp.MatchString(update.ref) {
 		// these refs don't need special handling, just move on
 		return &update, nil
 	}

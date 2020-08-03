@@ -25,7 +25,7 @@ in rec {
       rev = "ffdde105785063a81acd95bdf89ea53f6e0aac2d";
     };
 
-    deps = map (p: p.gopkg) [
+    deps = [
       xtext.secure.bidirule
       xtext.unicode.bidi
       xtext.unicode.norm
@@ -55,7 +55,7 @@ in rec {
       rev = "83cc0476cb11ea0da33dacd4c6354ab192de6fe6";
     };
 
-    deps = with goProto; map (p: p.gopkg) [
+    deps = with goProto; [
       proto
       ptypes.any
     ];
@@ -63,7 +63,7 @@ in rec {
 
   goGrpc = external {
     path = "google.golang.org/grpc";
-    deps = map (p: p.gopkg) ([
+    deps = ([
       xnet.trace
       xnet.http2
       xsys.unix

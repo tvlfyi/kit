@@ -82,13 +82,19 @@ let
     asmPack = ifAsm ''
       ${go}/bin/go tool pack r $out/${path}.a ./asm.o
     '';
-  in (runCommand "golib-${name}" {} ''
-    mkdir -p $out/${path}
-    ${srcList path (map (s: "${s}") srcs)}
-    ${asmBuild}
-    ${go}/bin/go tool compile -pack ${asmLink} -o $out/${path}.a -trimpath=$PWD -trimpath=${go} -p ${path} ${includeSources uniqueDeps} ${spaceOut srcs}
-    ${asmPack}
-  '') // { goDeps = uniqueDeps; goImportPath = path; };
+
+    gopkg = (runCommand "golib-${name}" {} ''
+      mkdir -p $out/${path}
+      ${srcList path (map (s: "${s}") srcs)}
+      ${asmBuild}
+      ${go}/bin/go tool compile -pack ${asmLink} -o $out/${path}.a -trimpath=$PWD -trimpath=${go} -p ${path} ${includeSources uniqueDeps} ${spaceOut srcs}
+      ${asmPack}
+    '') // {
+      inherit gopkg;
+      goDeps = uniqueDeps;
+      goImportPath = path;
+    };
+  in gopkg;
 
   # Build a tree of Go libraries out of an external Go source
   # directory that follows the standard Go layout and was not built

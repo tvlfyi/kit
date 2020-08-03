@@ -53,7 +53,7 @@ let
 
   # Build a Go program out of the specified files and dependencies.
   program = { name, srcs, deps ? [], x_defs ? {} }:
-  let uniqueDeps = allDeps deps;
+  let uniqueDeps = allDeps (map (d: d.gopkg) deps);
   in runCommand name {} ''
     ${go}/bin/go tool compile -o ${name}.a -trimpath=$PWD -trimpath=${go} ${includeSources uniqueDeps} ${spaceOut srcs}
     mkdir -p $out/bin
@@ -67,7 +67,7 @@ let
   # needed when downstream packages depend on it.
   package = { name, srcs, deps ? [], path ? name, sfiles ? [] }:
   let
-    uniqueDeps = allDeps deps;
+    uniqueDeps = allDeps (map (d: d.gopkg) deps);
 
     # The build steps below need to be executed conditionally for Go
     # assembly if the analyser detected any *.s files.

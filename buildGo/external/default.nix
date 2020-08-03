@@ -83,7 +83,7 @@ in { src, path, deps ? [] }: let
   depMap = listToAttrs (map (d: {
     name = d.goImportPath;
     value = d;
-  }) deps);
+  }) (map (d: d.gopkg) deps));
 
   name = pathToName path;
   analysisOutput = runCommand "${name}-structure.json" {} ''

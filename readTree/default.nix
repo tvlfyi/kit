@@ -17,9 +17,9 @@ let
     readDir
     substring;
 
-  argsWithPath = parts: args // {
-    locatedAt = parts;
-  };
+  argsWithPath = parts:
+    let meta.locatedAt = parts;
+    in meta // (if isAttrs args then args else args meta);
 
   readDirVisible = path:
     let

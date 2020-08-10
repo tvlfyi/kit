@@ -110,14 +110,14 @@ let
   };
 
   # Build a Go library out of the specified protobuf definition.
-  proto = { name, proto, path ? name, extraDeps ? [] }: (makeOverridable package) {
+  proto = { name, proto, path ? name, goPackage ? name, extraDeps ? [] }: (makeOverridable package) {
     inherit name path;
     deps = [ protoLibs.goProto.proto.gopkg ] ++ extraDeps;
     srcs = lib.singleton (runCommand "goproto-${name}.pb.go" {} ''
       cp ${proto} ${baseNameOf proto}
       ${protobuf}/bin/protoc --plugin=${protoLibs.goProto.protoc-gen-go.gopkg}/bin/protoc-gen-go \
         --go_out=plugins=grpc,import_path=${baseNameOf path}:. ${baseNameOf proto}
-      mv *.pb.go $out
+      mv ./${goPackage}/*.pb.go $out
     '');
   };
 

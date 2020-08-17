@@ -1,5 +1,5 @@
-# This program is used as a git post-update hook to trigger builds on
-# sourcehut.
+# This program is used as a Gerrit hook to trigger builds on
+# Buildkite, Sourcegraph reindexing and other maintenance tasks.
 { ciBuilds, depot, ... }:
 
 let

@@ -7,8 +7,4 @@ let
 in depot.nix.buildTypedGo.program {
   name = "besadii";
   srcs = [ ./main.go2 ];
-
-  x_defs = {
-    "main.TargetList" = toFile "ci-targets.json" (toJSON ciBuilds.__evaluatable);
-  };
 }

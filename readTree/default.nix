@@ -70,5 +70,5 @@ let
       }) nixFiles;
     in if dir ? "default.nix"
       then (if isAttrs self then self // (listToAttrs children) else self)
-      else listToAttrs (nixChildren ++ children);
+      else (listToAttrs (nixChildren ++ children) // { __readTree = true; });
 in readTree initPath [ (baseNameOf initPath) ]

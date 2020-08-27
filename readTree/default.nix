@@ -6,6 +6,7 @@ let
   inherit (builtins)
     attrNames
     baseNameOf
+    concatStringsSep
     filter
     hasAttr
     head
@@ -31,12 +32,17 @@ let
       value = children.${name};
     }) names);
 
+  # Create a mark containing the location of this attribute.
+  marker = parts: {
+    __readTree = parts;
+  };
+
   # The marker is added to every set that was imported directly by
   # readTree.
   importWithMark = path: parts:
     let imported = import path (argsWithPath parts);
     in if (isAttrs imported)
-      then imported // { __readTree = true; }
+      then imported // (marker parts)
       else imported;
 
   nixFileName = file:
@@ -70,5 +76,5 @@ let
       }) nixFiles;
     in if dir ? "default.nix"
       then (if isAttrs self then self // (listToAttrs children) else self)
-      else (listToAttrs (nixChildren ++ children) // { __readTree = true; });
+      else (listToAttrs (nixChildren ++ children) // (marker parts));
 in readTree initPath [ (baseNameOf initPath) ]

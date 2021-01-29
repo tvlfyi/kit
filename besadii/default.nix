@@ -4,7 +4,7 @@
 
 let
   inherit (builtins) toFile toJSON;
-in depot.nix.buildTypedGo.program {
+in depot.nix.buildGo.program {
   name = "besadii";
-  srcs = [ ./main.go2 ];
+  srcs = [ ./main.go ];
 }

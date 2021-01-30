@@ -79,7 +79,17 @@ let
       (import ./test-tree-traversal/default-nix/can-be-drv/default.nix {}))
   ];
 
+  # these each call readTree themselves because the throws have to happen inside assertThrows
+  wrong = it "cannot read these files and will complain" [
+    (assertThrows "this file is not a function"
+      (depot.nix.readTree {} ./test-wrong-not-a-function).not-a-function)
+    # can’t test for that, assertThrows can’t catch this error
+    # (assertThrows "this file is a function but doesn’t have dots"
+    #   (depot.nix.readTree {} ./test-wrong-no-dots).no-dots-in-function)
+  ];
+
 in runTestsuite "readTree" [
   example
   traversal-logic
+  wrong
 ]

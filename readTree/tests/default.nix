@@ -10,7 +10,7 @@ let
 
   tree-ex = depot.nix.readTree {} ./test-example;
 
-  example = it "corresponds to the example" [
+  example = it "corresponds to the README example" [
     (assertEq "third_party attrset"
       (lib.isAttrs tree-ex.third_party
       && (! lib.isDerivation tree-ex.third_party))
@@ -32,6 +32,54 @@ let
       "roquefort")
   ];
 
+  tree-tl = depot.nix.readTree {} ./test-tree-traversal;
+
+  traversal-logic = it "corresponds to the traversal logic in the README" [
+    (assertEq "skip subtree default.nix is read"
+      tree-tl.skip-subtree.but
+      "the default.nix is still read")
+    (assertEq "skip subtree a/default.nix is skipped"
+      (tree-tl.skip-subtree ? a)
+      false)
+    (assertEq "skip subtree b/c.nix is skipped"
+      (tree-tl.skip-subtree ? b)
+      false)
+    (assertEq "skip subtree a/default.nix would be read without .skip-subtree"
+      (tree-tl.no-skip-subtree.a)
+      "am I subtree yet?")
+    (assertEq "skip subtree b/c.nix would be read without .skip-subtree"
+      (tree-tl.no-skip-subtree.b.c)
+      "cool")
+
+    (assertEq "default.nix attrset is merged with siblings"
+      tree-tl.default-nix.no
+      "siblings should be read")
+    (assertEq "default.nix means sibling isn’t read"
+      (tree-tl.default-nix ? sibling)
+      false)
+    (assertEq "default.nix means subdirs are still read and merged into default.nix"
+      (tree-tl.default-nix.subdir.a)
+      "but I’m picked up")
+
+    (assertEq "default.nix can be not an attrset"
+      tree-tl.default-nix.no-merge
+      "I’m not merged with any children")
+    (assertEq "default.nix is not an attrset -> children are not merged"
+      (tree-tl.default-nix.no-merge ? subdir)
+      false)
+
+    (assertEq "default.nix can contain a derivation"
+      (lib.isDerivation tree-tl.default-nix.can-be-drv)
+      true)
+    (assertEq "Even if default.nix is a derivation, children are traversed and merged"
+      tree-tl.default-nix.can-be-drv.subdir.a
+      "Picked up through the drv")
+    (assertEq "default.nix drv is not changed by readTree"
+      tree-tl.default-nix.can-be-drv
+      (import ./test-tree-traversal/default-nix/can-be-drv/default.nix {}))
+  ];
+
 in runTestsuite "readTree" [
   example
+  traversal-logic
 ]

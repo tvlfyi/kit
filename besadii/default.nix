@@ -1,6 +1,6 @@
 # This program is used as a Gerrit hook to trigger builds on
 # Buildkite, Sourcegraph reindexing and other maintenance tasks.
-{ ciBuilds, depot, ... }:
+{ depot, ... }:
 
 let
   inherit (builtins) toFile toJSON;

@@ -44,7 +44,7 @@ let
       else imported;
 
   nixFileName = file:
-    let res = match "(.*)\.nix" file;
+    let res = match "(.*)\\.nix" file;
     in if res == null then null else head res;
 
   readTree = args: initPath: parts:

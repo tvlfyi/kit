@@ -25,7 +25,7 @@ let
   stdlibPackages = runCommand "stdlib-pkgs.json" {} ''
     export HOME=$PWD
     export GOPATH=/dev/null
-    ${go}/bin/go list all | \
+    ${go}/bin/go list std | \
       ${ripgrep}/bin/rg -v 'vendor' | \
       ${jq}/bin/jq -R '.' | \
       ${jq}/bin/jq -c -s 'map({key: ., value: true}) | from_entries' \

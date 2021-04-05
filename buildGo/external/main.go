@@ -29,13 +29,19 @@ var stdlibList string
 // Return information includes the local (relative from project root)
 // and external (none-stdlib) dependencies of this package.
 type pkg struct {
-	Name        string     `json:"name"`
-	Locator     []string   `json:"locator"`
-	Files       []string   `json:"files"`
-	SFiles      []string   `json:"sfiles"`
-	LocalDeps   [][]string `json:"localDeps"`
-	ForeignDeps []string   `json:"foreignDeps"`
-	IsCommand   bool       `json:"isCommand"`
+	Name        string       `json:"name"`
+	Locator     []string     `json:"locator"`
+	Files       []string     `json:"files"`
+	SFiles      []string     `json:"sfiles"`
+	LocalDeps   [][]string   `json:"localDeps"`
+	ForeignDeps []foreignDep `json:"foreignDeps"`
+	IsCommand   bool         `json:"isCommand"`
+}
+
+type foreignDep struct {
+	Path string `json:"path"`
+	// filename, column and line number of the import, if known
+	Position string `json:"position"`
 }
 
 // findGoDirs returns a filepath.WalkFunc that identifies all
@@ -88,7 +94,7 @@ func analysePackage(root, source, importpath string, stdlib map[string]bool) (pk
 	}
 
 	local := [][]string{}
-	foreign := []string{}
+	foreign := []foreignDep{}
 
 	for _, i := range p.Imports {
 		if stdlib[i] {
@@ -100,7 +106,12 @@ func analysePackage(root, source, importpath string, stdlib map[string]bool) (pk
 		} else if strings.HasPrefix(i, importpath+"/") {
 			local = append(local, strings.Split(strings.TrimPrefix(i, importpath+"/"), "/"))
 		} else {
-			foreign = append(foreign, i)
+			// The import positions is a map keyed on the import name.
+			// The value is a list, presumably because an import can appear
+			// multiple times in a package. Let’s just take the first one,
+			// should be enough for a good error message.
+			firstPos := p.ImportPos[i][0].String()
+			foreign = append(foreign, foreignDep{Path: i, Position: firstPos})
 		}
 	}
 

@@ -56,8 +56,8 @@ let
         throw "missing local dependency '${lib.concatStringsSep "." d}' in '${path}'"
       ) self) entry.localDeps;
 
-      foreignDeps = map (d: lib.attrByPath [ d ] (
-        throw "missing foreign dependency '${d}' in '${path}'"
+      foreignDeps = map (d: lib.attrByPath [ d.path ] (
+        throw "missing foreign dependency '${d.path}' in '${path}, imported at ${d.position}'"
       ) depMap) entry.foreignDeps;
 
       args = {

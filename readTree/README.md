@@ -60,6 +60,9 @@ with some exceptions:
 * If a folder contains a `default.nix` it is loaded and, if it evaluates to a
   set, *merged* with the children. If it evaluates to anything else the children
   are *not traversed*.
+* The `default.nix` of the top-level folder on which readTree is
+  called is **not** read to avoid infinite recursion (as, presumably,
+  this file is where readTree itself is called).
 
 Traversal is lazy, `readTree` will only build up the tree as requested. This
 currently has the downside that directories with no importable files end up in

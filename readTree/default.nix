@@ -65,11 +65,14 @@ let
     let res = match "(.*)\\.nix" file;
     in if res == null then null else head res;
 
-  readTree = args: initPath: parts:
+  readTree = { args, initPath, rootDir, parts }:
     let
       dir = readDirVisible initPath;
-      self = importWithMark args initPath parts;
       joinChild = c: initPath + ("/" + c);
+
+      self = if rootDir
+        then { __readTree = []; }
+        else importWithMark args initPath parts;
 
       # Import subdirectories of the current one, unless the special
       # `.skip-subtree` file exists which makes readTree ignore the
@@ -81,7 +84,12 @@ let
       filterDir = f: dir."${f}" == "directory";
       children = if hasAttr ".skip-subtree" dir then [] else map (c: {
         name = c;
-        value = readTree args (joinChild c) (parts ++ [ c ]);
+        value = readTree {
+          args = args;
+          initPath = (joinChild c);
+          rootDir = false;
+          parts = (parts ++ [ c ]);
+        };
       }) (filter filterDir (attrNames dir));
 
       # Import Nix files
@@ -95,5 +103,9 @@ let
       else (listToAttrs (nixChildren ++ children) // (marker parts));
 
 in {
-   __functor = _: args: initPath: readTree args initPath [ (baseNameOf initPath) ];
+  __functor = _: args: initPath: readTree {
+    inherit args initPath;
+    rootDir = true;
+    parts = [];
+  };
 }

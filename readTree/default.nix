@@ -1,3 +1,9 @@
+# Copyright (c) 2019 Vincent Ambo
+# Copyright (c) 2020-2021 The TVL Authors
+# SPDX-License-Identifier: MIT
+#
+# Provides a function to automatically read a a filesystem structure
+# into a Nix attribute set.
 { ... }:
 
 let

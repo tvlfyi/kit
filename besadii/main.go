@@ -56,28 +56,22 @@ type Author struct {
 type Build struct {
 	Commit  string            `json:"commit"`
 	Branch  string            `json:"branch"`
-	Message string            `json:"message"`
 	Author  Author            `json:"author"`
 	Env     map[string]string `json:"env"`
 }
 
 // Trigger a build of a given branch & commit on Buildkite
 func triggerBuild(log *syslog.Writer, token string, update *refUpdated) error {
-	var message string
 	env := make(map[string]string)
 
 	if update.changeId != nil && update.patchset != nil {
 		env["GERRIT_CHANGE_ID"] = *update.changeId
 		env["GERRIT_PATCHSET"] = *update.patchset
-		message = fmt.Sprintf(":llama: depot @ https://cl.tvl.fyi/c/depot/+/%s/%s", *update.changeId, *update.patchset)
-	} else {
-		message = fmt.Sprintf(":llama: depot @ %s", update.commit)
 	}
 
 	build := Build{
 		Commit:  update.commit,
 		Branch:  update.ref,
-		Message: message,
 		Env:     env,
 		Author: Author{
 			Name:  update.submitter,

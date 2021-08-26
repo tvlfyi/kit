@@ -4,7 +4,12 @@
 #
 # Provides a function to automatically read a a filesystem structure
 # into a Nix attribute set.
-{ ... }:
+#
+# Optionally accepts an argument `argsFilter` on import, which is a
+# function that receives the current tree location (as a list of
+# strings) and the argument set and can arbitrarily modify it.
+{ argsFilter ? (x: _parts: x)
+, ... }:
 
 let
   inherit (builtins)
@@ -56,7 +61,7 @@ let
         assert assertMsg
           (pathType == "lambda")
           "readTree: trying to import ${toString path}, but it’s a ${pathType}, you need to make it a function like { depot, pkgs, ... }";
-        importedFile (argsWithPath args parts);
+        importedFile (argsFilter (argsWithPath args parts) parts);
     in if (isAttrs imported)
       then imported // (marker parts)
       else imported;

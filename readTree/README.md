@@ -77,6 +77,9 @@ the tree as empty nodes (`{}`).
 * `filter`: (optional) A function to filter the argument set on each
   import based on the location in the tree. This can be used to, for
   example, implement a "visibility" system inside of a tree.
+* `scopedArgs`: (optional) An argument set that is passed to all
+  imported files via `builtins.scopedImport`. This will forcefully
+  override the given values in the import scope, use with care!
 
 The package headers in this repository follow the form `{ pkgs, ... }:` where
 `pkgs` is a fixed-point of the entire package tree (see the `default.nix` at the

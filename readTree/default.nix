@@ -59,9 +59,11 @@ let
 
   # The marker is added to every set that was imported directly by
   # readTree.
-  importWithMark = args: path: parts: filter:
-    let
-      importedFile = import path;
+  importWithMark = args: scopedArgs: path: parts: filter:
+  let
+      importedFile = if scopedArgs != {}
+                     then builtins.scopedImport scopedArgs path
+                     else import path;
       pathType = builtins.typeOf importedFile;
       imported =
         assert assertMsg
@@ -76,14 +78,14 @@ let
     let res = match "(.*)\\.nix" file;
     in if res == null then null else head res;
 
-  readTree = { args, initPath, rootDir, parts, argsFilter }:
+  readTree = { args, initPath, rootDir, parts, argsFilter, scopedArgs }:
     let
       dir = readDirVisible initPath;
       joinChild = c: initPath + ("/" + c);
 
       self = if rootDir
         then { __readTree = []; }
-        else importWithMark args initPath parts argsFilter;
+        else importWithMark args scopedArgs initPath parts argsFilter;
 
       # Import subdirectories of the current one, unless the special
       # `.skip-subtree` file exists which makes readTree ignore the
@@ -96,7 +98,7 @@ let
       children = if hasAttr ".skip-subtree" dir then [] else map (c: {
         name = c;
         value = readTree {
-          inherit argsFilter;
+          inherit argsFilter scopedArgs;
           args = args;
           initPath = (joinChild c);
           rootDir = false;
@@ -108,7 +110,7 @@ let
       nixFiles = filter (f: f != null) (map nixFileName (attrNames dir));
       nixChildren = map (c: let p = joinChild (c + ".nix"); in {
         name = c;
-        value = importWithMark args p (parts ++ [ c ]) argsFilter;
+        value = importWithMark args scopedArgs p (parts ++ [ c ]) argsFilter;
       }) nixFiles;
     in if dir ? "default.nix"
       then (if isAttrs self then self // (listToAttrs children) else self)
@@ -118,9 +120,10 @@ in {
   __functor = _:
     { path
     , args
-    , filter ? (x: _parts: x) }:
+    , filter ? (x: _parts: x)
+    , scopedArgs ? {} }:
       readTree {
-        inherit args;
+        inherit args scopedArgs;
         argsFilter = filter;
         initPath = path;
         rootDir = true;

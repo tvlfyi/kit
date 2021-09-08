@@ -8,7 +8,10 @@ let
     assertThrows
     ;
 
-  tree-ex = depot.nix.readTree {} ./test-example;
+  tree-ex = depot.nix.readTree {
+    path = ./test-example;
+    args = {};
+  };
 
   example = it "corresponds to the README example" [
     (assertEq "third_party attrset"
@@ -32,7 +35,10 @@ let
       "roquefort")
   ];
 
-  tree-tl = depot.nix.readTree {} ./test-tree-traversal;
+  tree-tl = depot.nix.readTree {
+    path = ./test-tree-traversal;
+    args = {};
+  };
 
   traversal-logic = it "corresponds to the traversal logic in the README" [
     (assertEq "skip subtree default.nix is read"
@@ -82,7 +88,10 @@ let
   # these each call readTree themselves because the throws have to happen inside assertThrows
   wrong = it "cannot read these files and will complain" [
     (assertThrows "this file is not a function"
-      (depot.nix.readTree {} ./test-wrong-not-a-function).not-a-function)
+      (depot.nix.readTree {
+        path = ./test-wrong-not-a-function;
+        args = {};
+      }).not-a-function)
     # can’t test for that, assertThrows can’t catch this error
     # (assertThrows "this file is a function but doesn’t have dots"
     #   (depot.nix.readTree {} ./test-wrong-no-dots).no-dots-in-function)

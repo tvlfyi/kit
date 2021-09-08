@@ -5,11 +5,17 @@
 # Provides a function to automatically read a a filesystem structure
 # into a Nix attribute set.
 #
-# Optionally accepts an argument `argsFilter` on import, which is a
-# function that receives the current tree location (as a list of
-# strings) and the argument set and can arbitrarily modify it.
-{ argsFilter ? (x: _parts: x)
-, ... }:
+# Called with an attribute set taking the following arguments:
+#
+#   path: Path to a directory from which to start reading the tree.
+#
+#   args: Argument set to pass to each imported file.
+#
+#   filter: Function to filter `args` based on the tree location. This should
+#           be a function of the form `args -> location -> args`, where the
+#           location is a list of strings representing the path components of
+#           the current readTree target. Optional.
+{ ... }:
 
 let
   inherit (builtins)
@@ -53,7 +59,7 @@ let
 
   # The marker is added to every set that was imported directly by
   # readTree.
-  importWithMark = args: path: parts:
+  importWithMark = args: path: parts: filter:
     let
       importedFile = import path;
       pathType = builtins.typeOf importedFile;
@@ -61,7 +67,7 @@ let
         assert assertMsg
           (pathType == "lambda")
           "readTree: trying to import ${toString path}, but it’s a ${pathType}, you need to make it a function like { depot, pkgs, ... }";
-        importedFile (argsFilter (argsWithPath args parts) parts);
+        importedFile (filter (argsWithPath args parts) parts);
     in if (isAttrs imported)
       then imported // (marker parts)
       else imported;
@@ -70,14 +76,14 @@ let
     let res = match "(.*)\\.nix" file;
     in if res == null then null else head res;
 
-  readTree = { args, initPath, rootDir, parts }:
+  readTree = { args, initPath, rootDir, parts, argsFilter }:
     let
       dir = readDirVisible initPath;
       joinChild = c: initPath + ("/" + c);
 
       self = if rootDir
         then { __readTree = []; }
-        else importWithMark args initPath parts;
+        else importWithMark args initPath parts argsFilter;
 
       # Import subdirectories of the current one, unless the special
       # `.skip-subtree` file exists which makes readTree ignore the
@@ -90,6 +96,7 @@ let
       children = if hasAttr ".skip-subtree" dir then [] else map (c: {
         name = c;
         value = readTree {
+          inherit argsFilter;
           args = args;
           initPath = (joinChild c);
           rootDir = false;
@@ -101,16 +108,22 @@ let
       nixFiles = filter (f: f != null) (map nixFileName (attrNames dir));
       nixChildren = map (c: let p = joinChild (c + ".nix"); in {
         name = c;
-        value = importWithMark args p (parts ++ [ c ]);
+        value = importWithMark args p (parts ++ [ c ]) argsFilter;
       }) nixFiles;
     in if dir ? "default.nix"
       then (if isAttrs self then self // (listToAttrs children) else self)
       else (listToAttrs (nixChildren ++ children) // (marker parts));
 
 in {
-  __functor = _: args: initPath: readTree {
-    inherit args initPath;
-    rootDir = true;
-    parts = [];
-  };
+  __functor = _:
+    { path
+    , args
+    , filter ? (x: _parts: x) }:
+      readTree {
+        inherit args;
+        argsFilter = filter;
+        initPath = path;
+        rootDir = true;
+        parts = [];
+      };
 }

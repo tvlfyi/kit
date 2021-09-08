@@ -70,8 +70,13 @@ the tree as empty nodes (`{}`).
 
 ## Import structure
 
-`readTree` is called with two parameters: The arguments to pass to all imports,
-and the initial path at which to start the traversal.
+`readTree` is called with an argument set containing a few parameters:
+
+* `path`: Initial path at which to start the traversal.
+* `args`: Arguments to pass to all imports.
+* `filter`: (optional) A function to filter the argument set on each
+  import based on the location in the tree. This can be used to, for
+  example, implement a "visibility" system inside of a tree.
 
 The package headers in this repository follow the form `{ pkgs, ... }:` where
 `pkgs` is a fixed-point of the entire package tree (see the `default.nix` at the

@@ -47,26 +47,24 @@ let
       value = children.${name};
     }) names);
 
-  # Create a mark containing the location of this attribute.
-  marker = parts: {
+  # Create a mark containing the location of this attribute and
+  # a list of all child attribute names added by readTree.
+  marker = parts: children: {
     __readTree = parts;
+    __readTreeChildren = builtins.attrNames children;
   };
 
-  # The marker is added to every set that was imported directly by
-  # readTree.
-  importWithMark = args: scopedArgs: path: parts: filter:
+  # Import a file and enforce our calling convention
+  importFile = args: scopedArgs: path: parts: filter:
   let
       importedFile = if scopedArgs != {}
                      then builtins.scopedImport scopedArgs path
                      else import path;
       pathType = builtins.typeOf importedFile;
-      imported =
-        if pathType != "lambda"
-        then builtins.throw "readTree: trying to import ${toString path}, but it’s a ${pathType}, you need to make it a function like { depot, pkgs, ... }"
-        else importedFile (filter (argsWithPath args parts) parts);
-    in if (isAttrs imported)
-      then imported // (marker parts)
-      else imported;
+  in
+    if pathType != "lambda"
+    then builtins.throw "readTree: trying to import ${toString path}, but it’s a ${pathType}, you need to make it a function like { depot, pkgs, ... }"
+    else importedFile (filter (argsWithPath args parts) parts);
 
   nixFileName = file:
     let res = match "(.*)\\.nix" file;
@@ -79,7 +77,7 @@ let
 
       self = if rootDir
         then { __readTree = []; }
-        else importWithMark args scopedArgs initPath parts argsFilter;
+        else importFile args scopedArgs initPath parts argsFilter;
 
       # Import subdirectories of the current one, unless the special
       # `.skip-subtree` file exists which makes readTree ignore the
@@ -102,13 +100,30 @@ let
 
       # Import Nix files
       nixFiles = filter (f: f != null) (map nixFileName (attrNames dir));
-      nixChildren = map (c: let p = joinChild (c + ".nix"); in {
+      nixChildren = map (c: let
+        p = joinChild (c + ".nix");
+        childParts = parts ++ [ c ];
+        imported = importFile args scopedArgs p childParts argsFilter;
+      in {
         name = c;
-        value = importWithMark args scopedArgs p (parts ++ [ c ]) argsFilter;
+        value =
+          if isAttrs imported
+          then imported // marker parts {}
+          else imported;
       }) nixFiles;
-    in if dir ? "default.nix"
-      then (if isAttrs self then self // (listToAttrs children) else self)
-      else (listToAttrs (nixChildren ++ children) // (marker parts));
+
+      nodeValue = if dir ? "default.nix" then self else {};
+
+      allChildren = listToAttrs (
+        if dir ? "default.nix"
+        then children
+        else nixChildren ++ children
+      );
+
+    in
+      if isAttrs nodeValue
+      then nodeValue // allChildren // (marker parts allChildren)
+      else nodeValue;
 
 in {
   __functor = _:

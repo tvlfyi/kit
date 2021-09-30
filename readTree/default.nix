@@ -108,7 +108,7 @@ let
         name = c;
         value =
           if isAttrs imported
-          then imported // marker parts {}
+          then imported // marker childParts {}
           else imported;
       }) nixFiles;
 

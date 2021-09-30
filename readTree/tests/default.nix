@@ -97,8 +97,31 @@ let
     #   (depot.nix.readTree {} ./test-wrong-no-dots).no-dots-in-function)
   ];
 
+  read-markers = depot.nix.readTree {
+    path = ./test-marker;
+    args = {};
+  };
+
+  assertMarkerByPath = path:
+    assertEq "${lib.concatStringsSep "." path} is marked correctly"
+      (lib.getAttrFromPath path read-markers).__readTree path;
+
+  markers = it "marks nodes correctly" [
+    (assertMarkerByPath [ "directory-marked" ])
+    (assertMarkerByPath [ "directory-marked" "nested" ])
+    (assertMarkerByPath [ "file-children" "one" ])
+    (assertMarkerByPath [ "file-children" "two" ])
+    (assertEq "nix file children are marked correctly"
+      read-markers.file-children.__readTreeChildren [ "one" "two" ])
+    (assertEq "directory children are marked correctly"
+      read-markers.directory-marked.__readTreeChildren [ "nested" ])
+    (assertEq "absence of children is marked"
+      read-markers.directory-marked.nested.__readTreeChildren [ ])
+  ];
+
 in runTestsuite "readTree" [
   example
   traversal-logic
   wrong
+  markers
 ]

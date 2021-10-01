@@ -15,9 +15,13 @@ let
     concatStringsSep
     filter
     foldl'
+    getEnv
     length
+    listToAttrs
     mapAttrs
-    toJSON;
+    pathExists
+    toJSON
+    unsafeDiscardStringContext;
 
   inherit (pkgs) lib runCommandNoCC writeText;
 in rec {
@@ -44,7 +48,7 @@ in rec {
 
   # Skip build steps if their out path has already been built.
   skip = headBranch: target: let
-    shouldSkip = with builtins;
+    shouldSkip =
       # Only skip in real Buildkite builds
       (getEnv "BUILDKITE_BUILD_ID" != "") &&
       # Always build everything for the canon branch.
@@ -60,7 +64,7 @@ in rec {
     skip = if skipIfBuilt then skip headBranch target else false;
 
     command = let
-      drvPath = builtins.unsafeDiscardStringContext target.drvPath;
+      drvPath = unsafeDiscardStringContext target.drvPath;
     in concatStringsSep " " [
       # First try to realise the drvPath of the target so we don't evaluate twice.
       # Nix has no concept of depending on a derivation file without depending on
@@ -162,4 +166,20 @@ in rec {
         (chunk: "cp ${chunk.path} $out/${chunk.filename}") chunks
     }
   '';
+
+  # Create a drvmap structure for the given targets, containing the
+  # mapping of all target paths to their derivations. The mapping can
+  # be persisted for future use.
+  mkDrvmap = drvTargets: writeText "drvmap.json" (toJSON (listToAttrs (map (target: {
+    name = mkLabel target;
+    value = {
+      drvPath = unsafeDiscardStringContext target.drvPath;
+
+      # Include the attrPath in the output to reconstruct the drv
+      # without parsing the human-readable label.
+      attrPath = target.__readTree ++ lib.optionals (target ? __subtarget) [
+        target.__subtarget
+      ];
+    };
+  }) drvTargets)));
 }

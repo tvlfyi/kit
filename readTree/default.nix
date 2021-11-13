@@ -64,7 +64,7 @@ let
   in
     if pathType != "lambda"
     then builtins.throw "readTree: trying to import ${toString path}, but it’s a ${pathType}, you need to make it a function like { depot, pkgs, ... }"
-    else importedFile (filter (argsWithPath args parts) parts);
+    else importedFile (filter parts (argsWithPath args parts));
 
   nixFileName = file:
     let res = match "(.*)\\.nix" file;
@@ -129,7 +129,7 @@ in {
   __functor = _:
     { path
     , args
-    , filter ? (x: _parts: x)
+    , filter ? (_parts: x: x)
     , scopedArgs ? {} }:
       readTree {
         inherit args scopedArgs;

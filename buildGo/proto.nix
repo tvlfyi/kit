@@ -52,6 +52,8 @@ in rec {
     path = "google.golang.org/genproto";
     src = fetchGit {
       url = "https://github.com/google/go-genproto";
+      # necessary because https://github.com/NixOS/nix/issues/1923
+      ref = "main";
       rev = "83cc0476cb11ea0da33dacd4c6354ab192de6fe6";
     };
 

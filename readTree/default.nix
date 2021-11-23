@@ -157,6 +157,10 @@ let
            })
            (node.meta.targets or []))
     else [];
+
+  # Determine whether a given value is a derivation.
+  # Copied from nixpkgs/lib for cases where lib is not available yet.
+  isDerivation = x: isAttrs x && x ? type && x.type == "derivation";
 in {
   inherit gather;
 
@@ -210,4 +214,17 @@ in {
   #
   # It is often required to create the args attribute set.
   fix = f: let x = f x; in x;
+
+  # Takes an attribute set and adds a meta.targets attribute to it
+  # which contains all direct children of the attribute set which are
+  # derivations.
+  #
+  # Type: attrs -> attrs
+  drvTargets = attrs: attrs // {
+    meta = {
+      targets = builtins.filter
+      (x: isDerivation attrs."${x}")
+      (builtins.attrNames attrs);
+    } // (attrs.meta or {});
+  };
 }

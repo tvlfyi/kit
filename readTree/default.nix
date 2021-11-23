@@ -20,13 +20,13 @@
 let
   inherit (builtins)
     attrNames
-    baseNameOf
     concatStringsSep
+    elem
+    elemAt
     filter
     hasAttr
     head
     isAttrs
-    length
     listToAttrs
     map
     match
@@ -138,4 +138,35 @@ in {
         rootDir = true;
         parts = [];
       };
+
+  # In addition to readTree itself, some functionality is exposed that
+  # is useful for users of readTree.
+
+  # Create a readTree filter disallowing access to the specified
+  # top-level folder in the repository, except for specific exceptions
+  # specified by their (full) paths.
+  #
+  # Called with the arguments:
+  #
+  #   folder: Name of the restricted top-level folder (e.g. 'experimental')
+  #
+  #   exceptions: List of readTree parts (e.g. [ [ "services" "some-app" ] ]),
+  #               which should be able to access the restricted folder.
+  #
+  #   reason: Textual explanation for the restriction (included in errors)
+  restrictFolder = { folder, exceptions ? [], reason }: parts: args:
+    if (elemAt parts 0) == folder || elem parts exceptions
+    then args
+    else args // {
+      depot = args.depot // {
+        "${folder}" = throw ''
+          Access to targets under //${folder} is not permitted from
+          other repository paths. Specific exceptions are configured
+          at the top-level.
+
+          ${reason}
+          At location: ${builtins.concatStringsSep "." parts}
+        '';
+      };
+    };
 }

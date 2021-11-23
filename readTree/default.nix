@@ -20,6 +20,7 @@
 let
   inherit (builtins)
     attrNames
+    concatMap
     concatStringsSep
     elem
     elemAt
@@ -125,7 +126,40 @@ let
       then nodeValue // allChildren // (marker parts allChildren)
       else nodeValue;
 
+  # Function can be used to find all readTree targets within an
+  # attribute set.
+  #
+  # This function will gather physical targets, that is targets which
+  # correspond directly to a location in the repository, as well as
+  # subtargets (specified in the meta.targets attribute of a node).
+  #
+  # This can be used to discover targets for inclusion in CI
+  # pipelines.
+  #
+  # Called with the arguments:
+  #
+  #   eligible: Function to determine whether the given derivation
+  #             should be included in the build.
+  gather = eligible: node:
+    if node ? __readTree then
+      # Include the node itself if it is eligible.
+      (if eligible node then [ node ] else [])
+      # Include eligible children of the node
+      ++ concatMap (gather eligible) (map (attr: node."${attr}") node.__readTreeChildren)
+      # Include specified sub-targets of the node
+      ++ filter eligible (map
+           (k: (node."${k}" or {}) // {
+             # Keep the same tree location, but explicitly mark this
+             # node as a subtarget.
+             __readTree = node.__readTree;
+             __readTreeChildren = [];
+             __subtarget = k;
+           })
+           (node.meta.targets or []))
+    else [];
 in {
+  inherit gather;
+
   __functor = _:
     { path
     , args

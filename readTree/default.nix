@@ -169,4 +169,11 @@ in {
         '';
       };
     };
+
+  # This definition of fix is identical to <nixpkgs>.lib.fix, but is
+  # provided here for cases where readTree is used before nixpkgs can
+  # be imported.
+  #
+  # It is often required to create the args attribute set.
+  fix = f: let x = f x; in x;
 }

@@ -32,11 +32,11 @@ var branchRegexp = regexp.MustCompile(`^refs/heads/(.*)$`)
 var metaRegexp = regexp.MustCompile(`^refs/changes/\d{0,2}/(\d+)/meta$`)
 var patchsetRegexp = regexp.MustCompile(`^refs/changes/\d{0,2}/(\d+)/(\d+)$`)
 
-// refUpdated is a struct representing the information passed to
-// besadii when it is invoked as Gerrit's refUpdated hook.
+// buildTrigger represents the information passed to besadii when it
+// is invoked as a Gerrit hook.
 //
-// https://gerrit.googlesource.com/plugins/hooks/+/HEAD/src/main/resources/Documentation/hooks.md#ref_updated
-type refUpdated struct {
+// https://gerrit.googlesource.com/plugins/hooks/+/HEAD/src/main/resources/Documentation/hooks.md
+type buildTrigger struct {
 	project   string
 	ref       string
 	commit    string
@@ -110,21 +110,26 @@ func updateGerrit(review reviewInput, changeId, patchset string) {
 }
 
 // Trigger a build of a given branch & commit on Buildkite
-func triggerBuild(log *syslog.Writer, token string, update *refUpdated) error {
+func triggerBuild(log *syslog.Writer, token string, trigger *buildTrigger) error {
 	env := make(map[string]string)
 
-	if update.changeId != nil && update.patchset != nil {
-		env["GERRIT_CHANGE_ID"] = *update.changeId
-		env["GERRIT_PATCHSET"] = *update.patchset
+	// Pass information about the originating Gerrit change to the
+	// build, if it is for a patchset.
+	//
+	// This information is later used by besadii when invoked by Gerrit
+	// to communicate the build status back to Gerrit.
+	if trigger.changeId != nil && trigger.patchset != nil {
+		env["GERRIT_CHANGE_ID"] = *trigger.changeId
+		env["GERRIT_PATCHSET"] = *trigger.patchset
 	}
 
 	build := Build{
-		Commit: update.commit,
-		Branch: update.ref,
+		Commit: trigger.commit,
+		Branch: trigger.ref,
 		Env:    env,
 		Author: Author{
-			Name:  update.submitter,
-			Email: update.email,
+			Name:  trigger.submitter,
+			Email: trigger.email,
 		},
 	}
 
@@ -161,11 +166,11 @@ func triggerBuild(log *syslog.Writer, token string, update *refUpdated) error {
 		return fmt.Errorf("failed to unmarshal build response: %w", err)
 	}
 
-	fmt.Fprintf(log, "triggered build for ref %q at commit %q: %s", update.ref, update.commit, buildResp.WebUrl)
+	fmt.Fprintf(log, "triggered build for ref %q at commit %q: %s", trigger.ref, trigger.commit, buildResp.WebUrl)
 
 	// Report the status back to the Gerrit CL so that users can click
 	// through to the running build.
-	msg := fmt.Sprintf("Started build for patchset #%s of cl/%s: %s", *update.patchset, *update.changeId, buildResp.WebUrl)
+	msg := fmt.Sprintf("Started build for patchset #%s of cl/%s: %s", *trigger.patchset, *trigger.changeId, buildResp.WebUrl)
 	review := reviewInput{
 		Message:               msg,
 		OmitDuplicateComments: true,
@@ -174,7 +179,7 @@ func triggerBuild(log *syslog.Writer, token string, update *refUpdated) error {
 		// Do not update the attention set for this comment.
 		IgnoreDefaultAttentionSetRules: true,
 	}
-	updateGerrit(review, *update.changeId, *update.patchset)
+	updateGerrit(review, *trigger.changeId, *trigger.patchset)
 
 	return nil
 }
@@ -194,14 +199,14 @@ func triggerIndexUpdate(token string) error {
 	return err
 }
 
-func refUpdatedFromFlags() (*refUpdated, error) {
-	var update refUpdated
+func buildTriggerFromFlags() (*buildTrigger, error) {
+	var trigger buildTrigger
 
-	flag.StringVar(&update.project, "project", "", "Gerrit project")
-	flag.StringVar(&update.commit, "newrev", "", "new revision")
-	flag.StringVar(&update.email, "submitter", "", "Submitter email")
-	flag.StringVar(&update.submitter, "submitter-username", "", "Submitter username")
-	flag.StringVar(&update.ref, "refname", "", "updated reference name")
+	flag.StringVar(&trigger.project, "project", "", "Gerrit project")
+	flag.StringVar(&trigger.commit, "newrev", "", "new revision")
+	flag.StringVar(&trigger.email, "submitter", "", "Submitter email")
+	flag.StringVar(&trigger.submitter, "submitter-username", "", "Submitter username")
+	flag.StringVar(&trigger.ref, "refname", "", "updated reference name")
 
 	// Gerrit passes more flags than we want, but Rob Pike decided[0] in
 	// 2013 that the Go art project will not allow users to ignore flags
@@ -214,29 +219,29 @@ func refUpdatedFromFlags() (*refUpdated, error) {
 
 	flag.Parse()
 
-	if update.project == "" || update.ref == "" || update.commit == "" || update.submitter == "" {
+	if trigger.project == "" || trigger.ref == "" || trigger.commit == "" || trigger.submitter == "" {
 		// If we get here, the user is probably being a dummy and invoking
 		// this manually - but incorrectly.
 		return nil, fmt.Errorf("'ref-updated' hook invoked without required arguments")
 	}
 
-	if update.project != "depot" || metaRegexp.MatchString(update.ref) {
+	if trigger.project != "depot" || metaRegexp.MatchString(trigger.ref) {
 		// this is not an error, but also not something we handle.
 		return nil, nil
 	}
 
-	if branchRegexp.MatchString(update.ref) {
+	if branchRegexp.MatchString(trigger.ref) {
 		// these refs don't need special handling, just move on
-		return &update, nil
+		return &trigger, nil
 	}
 
-	if matches := patchsetRegexp.FindStringSubmatch(update.ref); matches != nil {
-		update.changeId = &matches[1]
-		update.patchset = &matches[2]
-		return &update, nil
+	if matches := patchsetRegexp.FindStringSubmatch(trigger.ref); matches != nil {
+		trigger.changeId = &matches[1]
+		trigger.patchset = &matches[2]
+		return &trigger, nil
 	}
 
-	return nil, fmt.Errorf("besadii does not support updates for this type of ref (%q)", update.ref)
+	return nil, fmt.Errorf("besadii does not support updates for this type of ref (%q)", trigger.ref)
 }
 
 func refUpdatedMain() {
@@ -249,13 +254,13 @@ func refUpdatedMain() {
 		os.Exit(1)
 	}
 
-	update, err := refUpdatedFromFlags()
+	trigger, err := buildTriggerFromFlags()
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to parse ref update: %s", err))
 		os.Exit(1)
 	}
 
-	if update == nil { // the project was not 'depot'
+	if trigger == nil { // the project was not 'depot'
 		log.Err("build triggers are only supported for the 'depot' project")
 		os.Exit(0)
 	}
@@ -274,7 +279,8 @@ func refUpdatedMain() {
 	}
 	sourcegraphToken := strings.TrimSpace(string(sourcegraphTokenBytes))
 
-	err = triggerBuild(log, buildkiteToken, update)
+	err = triggerBuild(log, buildkiteToken, trigger)
+
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to trigger Buildkite build: %s", err))
 	}

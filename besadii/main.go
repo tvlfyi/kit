@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strings"
 )
 
 var branchRegexp = regexp.MustCompile(`^refs/heads/(.*)$`)
@@ -259,24 +260,26 @@ func refUpdatedMain() {
 		os.Exit(0)
 	}
 
-	buildkiteToken, err := ioutil.ReadFile("/etc/secrets/buildkite-besadii")
+	buildkiteTokenBytes, err := ioutil.ReadFile("/etc/secrets/buildkite-besadii")
 	if err != nil {
 		log.Alert(fmt.Sprintf("buildkite token could not be read: %s", err))
 		os.Exit(1)
 	}
+	buildkiteToken := strings.TrimSpace(string(buildkiteTokenBytes))
 
-	sourcegraphToken, err := ioutil.ReadFile("/etc/secrets/sourcegraph-token")
+	sourcegraphTokenBytes, err := ioutil.ReadFile("/etc/secrets/sourcegraph-token")
 	if err != nil {
 		log.Alert(fmt.Sprintf("sourcegraph token could not be read: %s", err))
 		os.Exit(1)
 	}
+	sourcegraphToken := strings.TrimSpace(string(sourcegraphTokenBytes))
 
-	err = triggerBuild(log, string(buildkiteToken), update)
+	err = triggerBuild(log, buildkiteToken, update)
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to trigger Buildkite build: %s", err))
 	}
 
-	err = triggerIndexUpdate(string(sourcegraphToken))
+	err = triggerIndexUpdate(sourcegraphToken)
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to trigger sourcegraph index update: %s", err))
 	}

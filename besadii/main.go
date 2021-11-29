@@ -26,7 +26,6 @@ import (
 	"path"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 // Regular expression to extract change ID out of a URL
@@ -135,18 +134,18 @@ func loadConfig() (*config, error) {
 }
 
 // updateGerrit posts a comment on a Gerrit CL to indicate the current build status.
-func updateGerrit(review reviewInput, changeId, patchset string) {
+func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 	body, _ := json.Marshal(review)
 	reader := ioutil.NopCloser(bytes.NewReader(body))
 
-	url := fmt.Sprintf("https://cl.tvl.fyi/a/changes/%s/revisions/%s/review", changeId, patchset)
+	url := fmt.Sprintf("%s/a/changes/%s/revisions/%s/review", cfg.GerritUrl, changeId, patchset)
 	req, err := http.NewRequest("POST", url, reader)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create an HTTP request: %w", err)
 		os.Exit(1)
 	}
 
-	req.SetBasicAuth("buildkite", gerritPassword())
+	req.SetBasicAuth(cfg.GerritUser, cfg.GerritPassword)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -159,12 +158,12 @@ func updateGerrit(review reviewInput, changeId, patchset string) {
 		respBody, _ := ioutil.ReadAll(resp.Body)
 		fmt.Fprintf(os.Stderr, "received non-success response from Gerrit: %s (%v)", respBody, resp.Status)
 	} else {
-		fmt.Printf("Added CI status comment on https://cl.tvl.fyi/c/depot/+/%s/%s", changeId, patchset)
+		fmt.Printf("Added CI status comment on %s/c/%s/+/%s/%s", cfg.GerritUrl, cfg.Repository, changeId, patchset)
 	}
 }
 
 // Trigger a build of a given branch & commit on Buildkite
-func triggerBuild(log *syslog.Writer, token string, trigger *buildTrigger) error {
+func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error {
 	env := make(map[string]string)
 
 	// Pass information about the originating Gerrit change to the
@@ -172,11 +171,11 @@ func triggerBuild(log *syslog.Writer, token string, trigger *buildTrigger) error
 	//
 	// This information is later used by besadii when invoked by Gerrit
 	// to communicate the build status back to Gerrit.
-	canonBuild := true
+	headBuild := true
 	if trigger.changeId != "" && trigger.patchset != "" {
 		env["GERRIT_CHANGE_ID"] = trigger.changeId
 		env["GERRIT_PATCHSET"] = trigger.patchset
-		canonBuild = false
+		headBuild = false
 	}
 
 	build := Build{
@@ -191,12 +190,13 @@ func triggerBuild(log *syslog.Writer, token string, trigger *buildTrigger) error
 	body, _ := json.Marshal(build)
 	reader := ioutil.NopCloser(bytes.NewReader(body))
 
-	req, err := http.NewRequest("POST", "https://api.buildkite.com/v2/organizations/tvl/pipelines/depot/builds", reader)
+	bkUrl := fmt.Sprintf("https://api.buildkite.com/v2/organizations/%s/pipelines/%s/builds", cfg.BuildkiteOrg, cfg.BuildkiteProject)
+	req, err := http.NewRequest("POST", bkUrl, reader)
 	if err != nil {
 		return fmt.Errorf("failed to create an HTTP request: %w", err)
 	}
 
-	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("Authorization", "Bearer "+cfg.BuildkiteToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -223,8 +223,8 @@ func triggerBuild(log *syslog.Writer, token string, trigger *buildTrigger) error
 
 	fmt.Fprintf(log, "triggered build for ref %q at commit %q: %s", trigger.ref, trigger.commit, buildResp.WebUrl)
 
-	// For builds of canon there is nothing else to do
-	if canonBuild {
+	// For builds of the HEAD branch there is nothing else to do
+	if headBuild {
 		return nil
 	}
 
@@ -239,7 +239,7 @@ func triggerBuild(log *syslog.Writer, token string, trigger *buildTrigger) error
 		// Do not update the attention set for this comment.
 		IgnoreDefaultAttentionSetRules: true,
 	}
-	updateGerrit(review, trigger.changeId, trigger.patchset)
+	updateGerrit(cfg, review, trigger.changeId, trigger.patchset)
 
 	return nil
 }
@@ -279,7 +279,7 @@ func ignoreFlags(ignore []string) {
 // Extract the buildtrigger struct out of the flags passed to besadii
 // when invoked as Gerrit's 'patchset-created' hook. This hook is used
 // for triggering CI on in-progress CLs.
-func buildTriggerFromPatchsetCreated() (*buildTrigger, error) {
+func buildTriggerFromPatchsetCreated(cfg *config) (*buildTrigger, error) {
 	// Information that needs to be returned
 	var trigger buildTrigger
 
@@ -299,10 +299,10 @@ func buildTriggerFromPatchsetCreated() (*buildTrigger, error) {
 
 	flag.Parse()
 
-	// If the patchset is not for depot@canon then we can ignore it. It
-	// might be some other kind of change (refs/meta/config or
-	// Gerrit-internal), but it is not an error.
-	if trigger.project != "depot" || targetBranch != "canon" {
+	// If the patchset is not for the HEAD branch of the monorepo, then
+	// we can ignore it. It might be some other kind of change
+	// (refs/meta/config or Gerrit-internal), but it is not an error.
+	if trigger.project != cfg.Repository || targetBranch != cfg.Branch {
 		return nil, nil
 	}
 
@@ -323,8 +323,8 @@ func buildTriggerFromPatchsetCreated() (*buildTrigger, error) {
 
 // Extract the buildtrigger struct out of the flags passed to besadii
 // when invoked as Gerrit's 'change-merged' hook. This hook is used
-// for triggering canon builds after change submission.
-func buildTriggerFromChangeMerged() *buildTrigger {
+// for triggering HEAD builds after change submission.
+func buildTriggerFromChangeMerged(cfg *config) *buildTrigger {
 	// Information that needs to be returned
 	var trigger buildTrigger
 
@@ -341,12 +341,13 @@ func buildTriggerFromChangeMerged() *buildTrigger {
 
 	flag.Parse()
 
-	// Skip builds for anything other than depot@canon
-	if trigger.project != "depot" || targetBranch != "canon" {
+	// If the patchset is not for the HEAD branch of the monorepo, then
+	// we can ignore it.
+	if trigger.project != cfg.Repository || targetBranch != cfg.Branch {
 		return nil
 	}
 
-	trigger.ref = "refs/heads/canon"
+	trigger.ref = "refs/heads/" + targetBranch
 
 	return &trigger
 }
@@ -357,14 +358,7 @@ func gerritHookMain(cfg *config, log *syslog.Writer, trigger *buildTrigger) {
 		os.Exit(0)
 	}
 
-	buildkiteTokenBytes, err := ioutil.ReadFile("/etc/secrets/buildkite-besadii")
-	if err != nil {
-		log.Alert(fmt.Sprintf("buildkite token could not be read: %s", err))
-		os.Exit(1)
-	}
-	buildkiteToken := strings.TrimSpace(string(buildkiteTokenBytes))
-
-	err = triggerBuild(log, buildkiteToken, trigger)
+	err := triggerBuild(cfg, log, trigger)
 
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to trigger Buildkite build: %s", err))
@@ -378,17 +372,7 @@ func gerritHookMain(cfg *config, log *syslog.Writer, trigger *buildTrigger) {
 	}
 }
 
-func gerritPassword() string {
-	gerritPassword, err := ioutil.ReadFile("/etc/secrets/buildkite-gerrit")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Gerrit password could not be read: %s", err)
-		os.Exit(1)
-	}
-
-	return string(gerritPassword)
-}
-
-func postCommandMain() {
+func postCommandMain(cfg *config) {
 	changeId := os.Getenv("GERRIT_CHANGE_ID")
 	patchset := os.Getenv("GERRIT_PATCHSET")
 
@@ -429,7 +413,7 @@ func postCommandMain() {
 
 		Tag: "autogenerated:buildkite~result",
 	}
-	updateGerrit(review, changeId, patchset)
+	updateGerrit(cfg, review, changeId, patchset)
 }
 
 func main() {
@@ -452,17 +436,17 @@ func main() {
 	}
 
 	if bin == "patchset-created" {
-		trigger, err := buildTriggerFromPatchsetCreated()
+		trigger, err := buildTriggerFromPatchsetCreated(cfg)
 		if err != nil {
 			log.Crit("failed to parse 'patchset-created' invocation from args")
 			os.Exit(1)
 		}
 		gerritHookMain(cfg, log, trigger)
 	} else if bin == "change-merged" {
-		trigger := buildTriggerFromChangeMerged()
+		trigger := buildTriggerFromChangeMerged(cfg)
 		gerritHookMain(cfg, log, trigger)
 	} else if bin == "post-command" {
-		postCommandMain()
+		postCommandMain(cfg)
 	} else {
 		fmt.Fprintf(os.Stderr, "besadii does not know how to be invoked as %q, sorry!", bin)
 		os.Exit(1)

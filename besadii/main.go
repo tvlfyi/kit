@@ -34,6 +34,18 @@ var changeIdRegexp = regexp.MustCompile(`^.*/(\d+)$`)
 
 // besadii configuration file structure
 type config struct {
+	// Required configuration for Buildkite<>Gerrit monorepo
+	// integration.
+	Repository       string `json:"repository"`
+	Branch           string `json:"branch"`
+	GerritUrl        string `json:"gerritUrl"`
+	GerritUser       string `json:"gerritUser"`
+	GerritPassword   string `json:"gerritPassword"`
+	BuildkiteOrg     string `json:"buildkiteOrg"`
+	BuildkiteProject string `json:"buildkiteProject"`
+	BuildkiteToken   string `json:"buildkiteToken"`
+
+	// Optional configuration for Sourcegraph trigger updates.
 	SourcegraphUrl   string `json:"sourcegraphUrl"`
 	SourcegraphToken string `json:"sourcegraphToken"`
 }
@@ -105,6 +117,18 @@ func loadConfig() (*config, error) {
 	// Rudimentary config validation logic
 	if cfg.SourcegraphUrl != "" && cfg.SourcegraphToken == "" {
 		return nil, fmt.Errorf("'SourcegraphToken' must be set if 'SourcegraphUrl' is set")
+	}
+
+	if cfg.Repository == "" || cfg.Branch == "" {
+		return nil, fmt.Errorf("missing repository configuration (required: repository, branch)")
+	}
+
+	if cfg.GerritUrl == "" || cfg.GerritUser == "" || cfg.GerritPassword == "" {
+		return nil, fmt.Errorf("missing Gerrit configuration (required: gerritUrl, gerritUser, gerritPassword)")
+	}
+
+	if cfg.BuildkiteOrg == "" || cfg.BuildkiteProject == "" || cfg.BuildkiteToken == "" {
+		return nil, fmt.Errorf("mising Buildkite configuration (required: buildkiteOrg, buildkiteProject, buildkiteToken)")
 	}
 
 	return &cfg, nil

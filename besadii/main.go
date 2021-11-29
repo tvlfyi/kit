@@ -8,7 +8,7 @@
 //
 // Gerrit (ref-updated) hook:
 // - Trigger Buildkite CI builds
-// - Trigger SourceGraph (cs.tvl.fyi) repository index updates
+// - Trigger SourceGraph repository index updates
 //
 // Buildkite (post-command) hook:
 // - Submit CL verification status back to Gerrit
@@ -31,6 +31,12 @@ import (
 
 // Regular expression to extract change ID out of a URL
 var changeIdRegexp = regexp.MustCompile(`^.*/(\d+)$`)
+
+// besadii configuration file structure
+type config struct {
+	SourcegraphUrl   string `json:"sourcegraphUrl"`
+	SourcegraphToken string `json:"sourcegraphToken"`
+}
 
 // buildTrigger represents the information passed to besadii when it
 // is invoked as a Gerrit hook.
@@ -77,6 +83,31 @@ type reviewInput struct {
 	OmitDuplicateComments          bool           `json:"omit_duplicate_comments"`
 	IgnoreDefaultAttentionSetRules bool           `json:"ignore_default_attention_set_rules"`
 	Tag                            string         `json:"tag"`
+}
+
+func loadConfig() (*config, error) {
+	configPath := os.Getenv("BESADII_CONFIG")
+	if configPath == "" {
+		configPath = "/etc/besadii/config.json"
+	}
+
+	configJson, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load besadii config: %w", err)
+	}
+
+	var cfg config
+	err = json.Unmarshal(configJson, &cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal besadii config: %w", err)
+	}
+
+	// Rudimentary config validation logic
+	if cfg.SourcegraphUrl != "" && cfg.SourcegraphToken == "" {
+		return nil, fmt.Errorf("'SourcegraphToken' must be set if 'SourcegraphUrl' is set")
+	}
+
+	return &cfg, nil
 }
 
 // updateGerrit posts a comment on a Gerrit CL to indicate the current build status.
@@ -189,19 +220,24 @@ func triggerBuild(log *syslog.Writer, token string, trigger *buildTrigger) error
 	return nil
 }
 
-// Trigger a Sourcegraph repository index update on cs.tvl.fyi.
+// Trigger a Sourcegraph repository index update.
 //
 // https://docs.sourcegraph.com/admin/repo/webhooks
-func triggerIndexUpdate(token string) error {
-	req, err := http.NewRequest("POST", "https://cs.tvl.fyi/.api/repos/depot/-/refresh", nil)
+func triggerIndexUpdate(cfg *config, log *syslog.Writer) error {
+	req, err := http.NewRequest("POST", cfg.SourcegraphUrl, nil)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Authorization", "token "+token)
+	req.Header.Add("Authorization", "token "+cfg.SourcegraphToken)
 
 	_, err = http.DefaultClient.Do(req)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to trigger Sourcegraph index update: %w", err)
+	}
+
+	log.Info("triggered sourcegraph index update")
+	return nil
 }
 
 // Gerrit passes more flags than we want, but Rob Pike decided[0] in
@@ -291,7 +327,7 @@ func buildTriggerFromChangeMerged() *buildTrigger {
 	return &trigger
 }
 
-func gerritHookMain(log *syslog.Writer, trigger *buildTrigger) {
+func gerritHookMain(cfg *config, log *syslog.Writer, trigger *buildTrigger) {
 	if trigger == nil {
 		// The hook was not for something we care about.
 		os.Exit(0)
@@ -304,24 +340,18 @@ func gerritHookMain(log *syslog.Writer, trigger *buildTrigger) {
 	}
 	buildkiteToken := strings.TrimSpace(string(buildkiteTokenBytes))
 
-	sourcegraphTokenBytes, err := ioutil.ReadFile("/etc/secrets/sourcegraph-token")
-	if err != nil {
-		log.Alert(fmt.Sprintf("sourcegraph token could not be read: %s", err))
-		os.Exit(1)
-	}
-	sourcegraphToken := strings.TrimSpace(string(sourcegraphTokenBytes))
-
 	err = triggerBuild(log, buildkiteToken, trigger)
 
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to trigger Buildkite build: %s", err))
 	}
 
-	err = triggerIndexUpdate(sourcegraphToken)
-	if err != nil {
-		log.Err(fmt.Sprintf("failed to trigger sourcegraph index update: %s", err))
+	if cfg.SourcegraphUrl != "" && trigger.ref == "refs/heads/canon" {
+		err = triggerIndexUpdate(cfg, log)
+		if err != nil {
+			log.Err(fmt.Sprintf("failed to trigger sourcegraph index update: %s", err))
+		}
 	}
-	log.Info("triggered sourcegraph index update")
 }
 
 func gerritPassword() string {
@@ -390,6 +420,12 @@ func main() {
 	log.Info(fmt.Sprintf("besadii called with arguments: %v", os.Args))
 
 	bin := path.Base(os.Args[0])
+	cfg, err := loadConfig()
+
+	if err != nil {
+		log.Crit(fmt.Sprintf("besadii configuration error: %v", err))
+		os.Exit(4)
+	}
 
 	if bin == "patchset-created" {
 		trigger, err := buildTriggerFromPatchsetCreated()
@@ -397,10 +433,10 @@ func main() {
 			log.Crit("failed to parse 'patchset-created' invocation from args")
 			os.Exit(1)
 		}
-		gerritHookMain(log, trigger)
+		gerritHookMain(cfg, log, trigger)
 	} else if bin == "change-merged" {
 		trigger := buildTriggerFromChangeMerged()
-		gerritHookMain(log, trigger)
+		gerritHookMain(cfg, log, trigger)
 	} else if bin == "post-command" {
 		postCommandMain()
 	} else {

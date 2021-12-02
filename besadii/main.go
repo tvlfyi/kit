@@ -23,6 +23,7 @@ import (
 	"log/syslog"
 	"net/http"
 	"os"
+	"os/user"
 	"path"
 	"regexp"
 	"strconv"
@@ -96,10 +97,24 @@ type reviewInput struct {
 	Tag                            string         `json:"tag"`
 }
 
+func defaultConfigLocation() (string, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	return path.Join(usr.HomeDir, "besadii.json"), nil
+}
+
 func loadConfig() (*config, error) {
 	configPath := os.Getenv("BESADII_CONFIG")
+
 	if configPath == "" {
-		configPath = "/etc/besadii/config.json"
+		var err error
+		configPath, err = defaultConfigLocation()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get config location: %w", err)
+		}
 	}
 
 	configJson, err := ioutil.ReadFile(configPath)

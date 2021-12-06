@@ -297,6 +297,12 @@ func ignoreFlags(ignore []string) {
 // Extract the username & email from Gerrit's uploader flag and set it
 // on the trigger struct, for display in Buildkite.
 func extractChangeUploader(uploader string, trigger *buildTrigger) error {
+	// Gerrit passes the uploader in another extra layer of quotes.
+	uploader, err := strconv.Unquote(uploader)
+	if err != nil {
+		return fmt.Errorf("failed to unquote email - forgot quotes on manual invocation?: %w", err)
+	}
+
 	// Extract the uploader username & email from the input passed by
 	// Gerrit (in RFC 5322 format).
 	addr, err := mail.ParseAddress(uploader)

@@ -490,14 +490,14 @@ func main() {
 	if bin == "patchset-created" {
 		trigger, err := buildTriggerFromPatchsetCreated(cfg)
 		if err != nil {
-			log.Crit("failed to parse 'patchset-created' invocation from args")
+			log.Crit(fmt.Sprintf("failed to parse 'patchset-created' invocation from args: %v", err))
 			os.Exit(1)
 		}
 		gerritHookMain(cfg, log, trigger)
 	} else if bin == "change-merged" {
 		trigger, err := buildTriggerFromChangeMerged(cfg)
 		if err != nil {
-			log.Crit("failed to parse 'change-merged' invocation from args")
+			log.Crit(fmt.Sprintf("failed to parse 'change-merged' invocation from args: %v", err))
 			os.Exit(1)
 		}
 		gerritHookMain(cfg, log, trigger)

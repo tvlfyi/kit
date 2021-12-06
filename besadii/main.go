@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"log/syslog"
 	"net/http"
+	"net/mail"
 	"os"
 	"os/user"
 	"path"
@@ -58,7 +59,8 @@ type buildTrigger struct {
 	project string
 	ref     string
 	commit  string
-	owner   string
+	author  string
+	email   string
 
 	changeId string
 	patchset string
@@ -198,7 +200,8 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 		Branch: trigger.ref,
 		Env:    env,
 		Author: Author{
-			Name: trigger.owner,
+			Name:  trigger.author,
+			Email: trigger.email,
 		},
 	}
 
@@ -291,6 +294,22 @@ func ignoreFlags(ignore []string) {
 	}
 }
 
+// Extract the username & email from Gerrit's uploader flag and set it
+// on the trigger struct, for display in Buildkite.
+func extractChangeUploader(uploader string, trigger *buildTrigger) error {
+	// Extract the uploader username & email from the input passed by
+	// Gerrit (in RFC 5322 format).
+	addr, err := mail.ParseAddress(uploader)
+	if err != nil {
+		return fmt.Errorf("invalid change uploader (%s): %w", uploader, err)
+	}
+
+	trigger.author = addr.Name
+	trigger.email = addr.Address
+
+	return nil
+}
+
 // Extract the buildtrigger struct out of the flags passed to besadii
 // when invoked as Gerrit's 'patchset-created' hook. This hook is used
 // for triggering CI on in-progress CLs.
@@ -299,20 +318,26 @@ func buildTriggerFromPatchsetCreated(cfg *config) (*buildTrigger, error) {
 	var trigger buildTrigger
 
 	// Information that is only needed for parsing
-	var targetBranch, changeUrl string
+	var targetBranch, changeUrl, uploader string
 
 	flag.StringVar(&trigger.project, "project", "", "Gerrit project")
 	flag.StringVar(&trigger.commit, "commit", "", "commit hash")
-	flag.StringVar(&trigger.owner, "change-owner", "", "change owner")
 	flag.StringVar(&trigger.patchset, "patchset", "", "patchset ID")
 
 	flag.StringVar(&targetBranch, "branch", "", "CL target branch")
 	flag.StringVar(&changeUrl, "change-url", "", "HTTPS URL of change")
+	flag.StringVar(&uploader, "uploader", "", "Change uploader name & email")
 
 	// patchset-created also passes various flags which we don't need.
-	ignoreFlags([]string{"kind", "topic", "change", "uploader", "uploader-username", "change-owner-username"})
+	ignoreFlags([]string{"kind", "topic", "change", "uploader-username", "change-owner", "change-owner-username"})
 
 	flag.Parse()
+
+	// Parse username & email
+	err := extractChangeUploader(uploader, &trigger)
+	if err != nil {
+		return nil, err
+	}
 
 	// If the patchset is not for the HEAD branch of the monorepo, then
 	// we can ignore it. It might be some other kind of change
@@ -339,32 +364,38 @@ func buildTriggerFromPatchsetCreated(cfg *config) (*buildTrigger, error) {
 // Extract the buildtrigger struct out of the flags passed to besadii
 // when invoked as Gerrit's 'change-merged' hook. This hook is used
 // for triggering HEAD builds after change submission.
-func buildTriggerFromChangeMerged(cfg *config) *buildTrigger {
+func buildTriggerFromChangeMerged(cfg *config) (*buildTrigger, error) {
 	// Information that needs to be returned
 	var trigger buildTrigger
 
 	// Information that is only needed for parsing
-	var targetBranch string
+	var targetBranch, submitter string
 
 	flag.StringVar(&trigger.project, "project", "", "Gerrit project")
 	flag.StringVar(&trigger.commit, "commit", "", "Commit hash")
-	flag.StringVar(&trigger.owner, "change-owner", "", "Change owner")
+	flag.StringVar(&submitter, "submitter", "", "Submitter email & username")
 	flag.StringVar(&targetBranch, "branch", "", "CL target branch")
 
 	// Ignore extra flags passed by change-merged
-	ignoreFlags([]string{"change", "topic", "change-url", "submitter", "submitter-username", "newrev", "change-owner-username"})
+	ignoreFlags([]string{"change", "topic", "change-url", "submitter-username", "newrev", "change-owner", "change-owner-username"})
 
 	flag.Parse()
+
+	// Parse username & email
+	err := extractChangeUploader(submitter, &trigger)
+	if err != nil {
+		return nil, err
+	}
 
 	// If the patchset is not for the HEAD branch of the monorepo, then
 	// we can ignore it.
 	if trigger.project != cfg.Repository || targetBranch != cfg.Branch {
-		return nil
+		return nil, nil
 	}
 
 	trigger.ref = "refs/heads/" + targetBranch
 
-	return &trigger
+	return &trigger, nil
 }
 
 func gerritHookMain(cfg *config, log *syslog.Writer, trigger *buildTrigger) {
@@ -458,7 +489,11 @@ func main() {
 		}
 		gerritHookMain(cfg, log, trigger)
 	} else if bin == "change-merged" {
-		trigger := buildTriggerFromChangeMerged(cfg)
+		trigger, err := buildTriggerFromChangeMerged(cfg)
+		if err != nil {
+			log.Crit("failed to parse 'change-merged' invocation from args")
+			os.Exit(1)
+		}
 		gerritHookMain(cfg, log, trigger)
 	} else if bin == "post-command" {
 		postCommandMain(cfg)

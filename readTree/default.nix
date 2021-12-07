@@ -100,7 +100,8 @@ let
       }) (filter filterDir (attrNames dir));
 
       # Import Nix files
-      nixFiles = filter (f: f != null) (map nixFileName (attrNames dir));
+      nixFiles = if hasAttr ".skip-subtree" dir then []
+        else filter (f: f != null) (map nixFileName (attrNames dir));
       nixChildren = map (c: let
         p = joinChild (c + ".nix");
         childParts = parts ++ [ c ];

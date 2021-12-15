@@ -28,6 +28,7 @@ import (
 	"path"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // Regular expression to extract change ID out of a URL
@@ -202,9 +203,12 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 		headBuild = false
 	}
 
+    // The branch doesn't have to be a real ref (it's just used to group builds), so make it the identifier for the CL
+	branch := fmt.Sprintf("cl/%v", strings.Split(trigger.ref, "/")[3])
+
 	build := Build{
 		Commit: trigger.commit,
-		Branch: trigger.ref,
+		Branch: branch,
 		Env:    env,
 		Author: Author{
 			Name:  trigger.author,

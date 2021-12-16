@@ -127,7 +127,7 @@ let
       then nodeValue // allChildren // (marker parts allChildren)
       else nodeValue;
 
-  # Function can be used to find all readTree targets within an
+  # Function which can be used to find all readTree targets within an
   # attribute set.
   #
   # This function will gather physical targets, that is targets which

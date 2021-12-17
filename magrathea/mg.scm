@@ -8,8 +8,9 @@
 ;; magrathea enables this, but with nix-y monorepos.
 
 (import (chicken base)
-        (chicken io)
+        (chicken format)
         (chicken irregex)
+        (chicken port)
         (chicken process)
         (chicken process-context)
         (chicken string)
@@ -38,6 +39,109 @@ commands:
 file all feedback on b.tvl.fyi
 USAGE
 )
+
+;; parse target definitions. trailing slashes on physical targets are
+;; allowed for shell autocompletion.
+;;
+;; component ::= any string without "/" or ":"
+;;
+;; physical-target ::= <component>
+;;                   | <component> "/"
+;;                   | <component> "/" <physical-target>
+;;
+;; virtual-target ::= ":" <component>
+;;
+;; relative-target ::= <physical-target>
+;;                   | <virtual-target>
+;;                   | <physical-target> <virtual-target>
+;;
+;; root-anchor ::= "//"
+;;
+;; target ::= <relative-target> | <root-anchor> <relative-target>
+
+;; read a path component until it looks like something else is coming
+(define (read-component first port)
+  (let ((keep-reading?
+         (lambda () (not (or (eq? #\/ (peek-char port))
+                             (eq? #\: (peek-char port))
+                             (eof-object? (peek-char port)))))))
+    (let reader ((acc (list first))
+                 (condition (keep-reading?)))
+      (if condition (reader (cons (read-char port) acc) (keep-reading?))
+          (list->string (reverse acc))))))
+
+;; read something that started with a slash. what will it be?
+(define (read-slash port)
+  (if (eq? #\/ (peek-char port))
+      (begin (read-char port)
+             'root-anchor)
+      'path-separator))
+
+;; read any target token and leave port sitting at the next one
+(define (read-token port)
+  (match (read-char port)
+         [#\/ (read-slash port)]
+         [#\: 'virtual-separator]
+         [other (read-component other port)]))
+
+;; read a target into a list of target tokens
+(define (read-target target-str)
+  (call-with-input-string
+   target-str
+   (lambda (port)
+     (let reader ((acc '()))
+       (if (eof-object? (peek-char port))
+           (reverse acc)
+           (reader (cons (read-token port) acc)))))))
+
+(define-record target absolute components virtual)
+(define-record-printer (target t out)
+  (fprintf out (conc "#target("
+                     (if (target-absolute t) "//" "")
+                     (string-intersperse (target-components t) "/")
+                     (if (target-virtual t) ":" "")
+                     (or (target-virtual t) "")
+                     ")")))
+
+;; parse and validate a list of target tokens
+(define parse-tokens
+  (lambda (tokens #!optional (mode 'root) (acc (make-target #f '() #f)))
+    (match (cons mode tokens)
+           ;; absolute target
+           [('root . ('root-anchor . rest))
+            (begin (target-absolute-set! acc #t)
+                   (parse-tokens rest 'root acc))]
+
+           ;; relative target minus potential garbage
+           [('root . (not ('path-separator . _)))
+            (parse-tokens tokens 'normal acc)]
+
+           ;; virtual target
+           [('normal . ('virtual-separator . rest))
+            (parse-tokens rest 'virtual acc)]
+
+           [('virtual . ((? string? v)))
+            (begin
+              (target-virtual-set! acc v)
+              acc)]
+
+           ;; chomp through all components and separators
+           [('normal . ('path-separator . rest)) (parse-tokens rest 'normal acc)]
+           [('normal . ((? string? component) . rest))
+            (begin (target-components-set! acc (append (target-components acc) (list component)))
+                   (parse-tokens rest 'normal acc ))]
+
+           ;; nothing more to parse and not in a weird state, all done, yay!
+           [('normal . ()) acc]
+
+           ;; oh no, we ran out of input too early :(
+           [(_ . ()) `(error . ,(format "unexpected end of input while parsing ~s target" mode))]
+
+           ;; something else was invalid :(
+           [_ `(error . ,(format "unexpected ~s while parsing ~s target" (car tokens) mode))])))
+
+(define (parse-target target)
+  (parse-tokens (read-target target)))
 
 ;; return the current repository root as a string
 (define mg--repository-root #f)

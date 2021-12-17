@@ -168,9 +168,10 @@ USAGE
   (or mg--repository-root
       (begin
         (set! mg--repository-root
-              (string-chomp
-               (call-with-input-pipe "git rev-parse --show-toplevel"
-                                     (lambda (p) (read-string #f p)))))
+              (or (get-environment-variable "MG_ROOT")
+                  (string-chomp
+                   (call-with-input-pipe "git rev-parse --show-toplevel"
+                                         (lambda (p) (read-string #f p))))))
         mg--repository-root)))
 
 ;; determine the current path relative to the root of the repository

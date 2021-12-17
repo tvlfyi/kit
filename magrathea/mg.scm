@@ -36,6 +36,7 @@ target:
 commands:
   build - build a target
   shell - enter a shell with the target's build dependencies
+  path  - print source folder for the target
 
 file all feedback on b.tvl.fyi
 USAGE
@@ -201,12 +202,13 @@ USAGE
                           "\" " acc ")"))])))
 
 ;; exit and complain at the user if something went wrong
+(define (mg-error message)
+  (format (current-error-port) "[mg] error: ~A~%" message)
+  (exit 1))
+
 (define (guarantee-success value)
   (match value
-         [('error . message)
-          (begin
-            (format (current-error-port) "[mg] error: ~A~%" message)
-            (exit 1))]
+         [('error . message) (mg-error message)]
          [_ value]))
 
 (define (execute-build t)
@@ -240,11 +242,24 @@ USAGE
                  (guarantee-success (parse-target arg)))]
          [other (print "not yet implemented")]))
 
+(define (path args)
+  (match args
+         [(arg)
+          (print (conc (repository-root)
+                       "/"
+                       (string-intersperse
+                        (target-components
+                         (normalise-target
+                          (guarantee-success (parse-target arg)))) "/")))]
+         [() (mg-error "path command needs a target")]
+         [other (mg-error (format "unknown arguments: ~a" other))]))
+
 (define (main args)
   (match args
          [() (print usage)]
          [("build" . _) (build (cdr args))]
          [("shell" . _) (shell (cdr args))]
+         [("path" . _) (path (cdr args))]
          [other (begin (print "unknown command: mg " args)
                        (print usage))]))
 

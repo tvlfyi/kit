@@ -14,7 +14,8 @@
         (chicken process)
         (chicken process-context)
         (chicken string)
-        (matchable))
+        (matchable)
+        (only (chicken io) read-string))
 
 (define usage #<<USAGE
 usage: mg <command> [<target>]
@@ -95,17 +96,17 @@ USAGE
            (reader (cons (read-token port) acc)))))))
 
 (define-record target absolute components virtual)
+(define (empty-target) (make-target #f '() #f))
+
 (define-record-printer (target t out)
-  (fprintf out (conc "#target("
-                     (if (target-absolute t) "//" "")
+  (fprintf out (conc (if (target-absolute t) "//" "")
                      (string-intersperse (target-components t) "/")
                      (if (target-virtual t) ":" "")
-                     (or (target-virtual t) "")
-                     ")")))
+                     (or (target-virtual t) ""))))
 
 ;; parse and validate a list of target tokens
 (define parse-tokens
-  (lambda (tokens #!optional (mode 'root) (acc (make-target #f '() #f)))
+  (lambda (tokens #!optional (mode 'root) (acc (empty-target)))
     (match (cons mode tokens)
            ;; absolute target
            [('root . ('root-anchor . rest))
@@ -128,7 +129,8 @@ USAGE
            ;; chomp through all components and separators
            [('normal . ('path-separator . rest)) (parse-tokens rest 'normal acc)]
            [('normal . ((? string? component) . rest))
-            (begin (target-components-set! acc (append (target-components acc) (list component)))
+            (begin (target-components-set!
+                    acc (append (target-components acc) (list component)))
                    (parse-tokens rest 'normal acc ))]
 
            ;; nothing more to parse and not in a weird state, all done, yay!
@@ -142,6 +144,22 @@ USAGE
 
 (define (parse-target target)
   (parse-tokens (read-target target)))
+
+;; turn relative targets into absolute targets based on the current
+;; directory
+(define (normalise-target t)
+  (when (not (target-absolute t))
+    (target-components-set! t (append (relative-repo-path)
+                                      (target-components t)))
+    (target-absolute-set! t #t))
+  t)
+
+;; nix doesn't care about the distinction between physical and virtual
+;; targets, normalise it away
+(define (normalised-components t)
+  (if (target-virtual t)
+      (append (target-components t) (list (target-virtual t)))
+      (target-components t)))
 
 ;; return the current repository root as a string
 (define mg--repository-root #f)
@@ -168,46 +186,65 @@ USAGE
 ;; create a nix expression to build the attribute at the specified
 ;; components
 ;;
+;; an empty target will build the current folder instead.
+;;
 ;; this uses builtins.getAttr explicitly to avoid problems with
 ;; escaping.
-(define nix-expr-for
-  (lambda (parts #!optional (acc (conc "(import " (repository-root) " {})")))
+(define (nix-expr-for target)
+  (let nest ((parts (normalised-components (normalise-target target)))
+             (acc (conc "(import " (repository-root) " {})")))
     (match parts
            [() (conc "with builtins; " acc)]
-           [_ (nix-expr-for (cdr parts)
-                            (conc "(getAttr \"" (nix-escape (car parts)) "\" " acc ")"))])))
+           [_ (nest (cdr parts)
+                    (conc "(getAttr \""
+                          (nix-escape (car parts))
+                          "\" " acc ")"))])))
 
-(define (execute-build components)
-  (let ((attr (string-intersperse components "."))
-        (expr (nix-expr-for components)))
-    (print "[mg] building attribute '" attr "'")
+;; exit and complain at the user if something went wrong
+(define (guarantee-success value)
+  (match value
+         [('error . message)
+          (begin
+            (format (current-error-port) "[mg] error: ~A~%" message)
+            (exit 1))]
+         [_ value]))
+
+(define (execute-build t)
+  (let ((expr (nix-expr-for t)))
+    (printf "[mg] building target ~A~%" t)
     (process-execute "nix-build" (list "-E" expr "--show-trace"))))
 
 (define (build args)
   (match args
          ;; simplest case: plain mg build with no target spec -> build
          ;; the current folder's main target.
-         [() (execute-build (relative-repo-path))]
+         [() (execute-build (empty-target))]
+
+         ;; single argument should be a target spec
+         [(arg) (execute-build
+                 (guarantee-success (parse-target arg)))]
+
          [other (print "not yet implemented")]))
 
-(define (execute-shell components)
-  (let ((attr (string-intersperse components "."))
-        (expr (nix-expr-for components))
+(define (execute-shell t)
+  (let ((expr (nix-expr-for t))
         (user-shell (or (get-environment-variable "SHELL") "bash")))
-    (print "[mg] entering shell for '" attr "'")
+    (printf "[mg] entering shell for ~A~%" t)
     (process-execute "nix-shell"
                      (list "-E" expr "--command" user-shell))))
 
 (define (shell args)
   (match args
-         [() (execute-shell (relative-repo-path))]
+         [() (execute-shell (empty-target))]
+         [(arg) (execute-shell
+                 (guarantee-success (parse-target arg)))]
          [other (print "not yet implemented")]))
 
 (define (main args)
   (match args
          [() (print usage)]
-         [("build" ...) (build (cdr args))]
-         [("shell" ...) (shell (cdr args))]
+         [("build" . _) (build (cdr args))]
+         [("shell" . _) (shell (cdr args))]
          [other (begin (print "unknown command: mg " args)
                        (print usage))]))
 

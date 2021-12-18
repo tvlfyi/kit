@@ -246,12 +246,13 @@ USAGE
 (define (path args)
   (match args
          [(arg)
-          (print (conc (repository-root)
-                       "/"
-                       (string-intersperse
-                        (target-components
-                         (normalise-target
-                          (guarantee-success (parse-target arg)))) "/")))]
+          (print (apply string-append
+                        (intersperse
+                         (cons (repository-root)
+                               (target-components
+                                (normalise-target
+                                 (guarantee-success (parse-target arg)))))
+                         "/")))]
          [() (mg-error "path command needs a target")]
          [other (mg-error (format "unknown arguments: ~a" other))]))
 

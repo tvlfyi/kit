@@ -158,6 +158,11 @@ func loadConfig() (*config, error) {
 	return &cfg, nil
 }
 
+// linkToChange creates the full link to a change's patchset in Gerrit
+func linkToChange(cfg *config, changeId, patchset string) string {
+	return path.Join(cfg.GerritUrl, "c", cfg.Repository, "+", changeId, patchset)
+}
+
 // updateGerrit posts a comment on a Gerrit CL to indicate the current build status.
 func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 	body, _ := json.Marshal(review)
@@ -183,7 +188,7 @@ func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 		respBody, _ := ioutil.ReadAll(resp.Body)
 		fmt.Fprintf(os.Stderr, "received non-success response from Gerrit: %s (%v)", respBody, resp.Status)
 	} else {
-		fmt.Printf("Added CI status comment on %s/c/%s/+/%s/%s", cfg.GerritUrl, cfg.Repository, changeId, patchset)
+		fmt.Printf("Added CI status comment on %s", linkToChange(cfg, changeId, patchset))
 	}
 }
 
@@ -198,6 +203,7 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 	// to communicate the build status back to Gerrit.
 	headBuild := true
 	if trigger.changeId != "" && trigger.patchset != "" {
+		env["GERRIT_CHANGE_URL"] = linkToChange(cfg, trigger.changeId, trigger.patchset)
 		env["GERRIT_CHANGE_ID"] = trigger.changeId
 		env["GERRIT_PATCHSET"] = trigger.patchset
 		headBuild = false

@@ -195,6 +195,7 @@ func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 // Trigger a build of a given branch & commit on Buildkite
 func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error {
 	env := make(map[string]string)
+	branch := trigger.ref
 
 	// Pass information about the originating Gerrit change to the
 	// build, if it is for a patchset.
@@ -207,10 +208,11 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 		env["GERRIT_CHANGE_ID"] = trigger.changeId
 		env["GERRIT_PATCHSET"] = trigger.patchset
 		headBuild = false
-	}
 
-    // The branch doesn't have to be a real ref (it's just used to group builds), so make it the identifier for the CL
-	branch := fmt.Sprintf("cl/%v", strings.Split(trigger.ref, "/")[3])
+    // The branch doesn't have to be a real ref (it's just used to
+    // group builds), so make it the identifier for the CL
+		branch = fmt.Sprintf("cl/%v", strings.Split(trigger.ref, "/")[3])
+	}
 
 	build := Build{
 		Commit: trigger.commit,

@@ -160,7 +160,7 @@ func loadConfig() (*config, error) {
 
 // linkToChange creates the full link to a change's patchset in Gerrit
 func linkToChange(cfg *config, changeId, patchset string) string {
-	return fmt.Sprintf("%s/c/%s/+/%s/%s", cfg.GerritUrl, "c", cfg.Repository, "+", changeId, patchset)
+	return fmt.Sprintf("%s/c/%s/+/%s/%s", cfg.GerritUrl, cfg.Repository, changeId, patchset)
 }
 
 // updateGerrit posts a comment on a Gerrit CL to indicate the current build status.

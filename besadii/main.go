@@ -267,7 +267,7 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 
 	// Report the status back to the Gerrit CL so that users can click
 	// through to the running build.
-	msg := fmt.Sprintf("Started build for patchset #%s of cl/%s: %s", trigger.patchset, trigger.changeId, buildResp.WebUrl)
+	msg := fmt.Sprintf("Started build for patchset #%s on: %s", trigger.patchset, buildResp.WebUrl)
 	review := reviewInput{
 		Message:               msg,
 		OmitDuplicateComments: true,

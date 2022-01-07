@@ -34,6 +34,13 @@ import (
 // Regular expression to extract change ID out of a URL
 var changeIdRegexp = regexp.MustCompile(`^.*/(\d+)$`)
 
+// Regular expression to check if gerritChangeName valid. The
+// limitation could be what is allowed for a git branch name. For now
+// we want to have a stricter limitation for readability and ease of
+// use.
+var gerritChangeNameRegexp = `^[a-z0-9]+$`
+var gerritChangeNameCheck = regexp.MustCompile(gerritChangeNameRegexp)
+
 // besadii configuration file structure
 type config struct {
 	// Required configuration for Buildkite<>Gerrit monorepo
@@ -47,6 +54,7 @@ type config struct {
 	BuildkiteOrg     string `json:"buildkiteOrg"`
 	BuildkiteProject string `json:"buildkiteProject"`
 	BuildkiteToken   string `json:"buildkiteToken"`
+	GerritChangeName string `json:"gerritChangeName"`
 
 	// Optional configuration for Sourcegraph trigger updates.
 	SourcegraphUrl   string `json:"sourcegraphUrl"`
@@ -138,6 +146,14 @@ func loadConfig() (*config, error) {
 		cfg.GerritLabel = "Verified"
 	}
 
+	// The default text referring to a Gerrit Change in BuildKite.
+	if cfg.GerritChangeName == "" {
+		cfg.GerritChangeName = "cl"
+	}
+	if !gerritChangeNameCheck.MatchString(cfg.GerritChangeName) {
+		return nil, fmt.Errorf("invalid 'gerritChangeName': %s", cfg.GerritChangeName)
+	}
+
 	// Rudimentary config validation logic
 	if cfg.SourcegraphUrl != "" && cfg.SourcegraphToken == "" {
 		return nil, fmt.Errorf("'SourcegraphToken' must be set if 'SourcegraphUrl' is set")
@@ -180,7 +196,7 @@ func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Errorf("failed to update CL on Gerrit: %w", err)
+		fmt.Errorf("failed to update %s on %s: %w", cfg.GerritChangeName, cfg.GerritUrl, err)
 	}
 	defer resp.Body.Close()
 
@@ -210,8 +226,8 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 		headBuild = false
 
 		// The branch doesn't have to be a real ref (it's just used to
-		// group builds), so make it the identifier for the CL
-		branch = fmt.Sprintf("cl/%v", strings.Split(trigger.ref, "/")[3])
+		// group builds), so make it the identifier for the CL.
+		branch = fmt.Sprintf("%s/%v", cfg.GerritChangeName, strings.Split(trigger.ref, "/")[3])
 	}
 
 	build := Build{
@@ -459,7 +475,7 @@ func postCommandMain(cfg *config) {
 		// If these variables are unset, but the hook was invoked, the
 		// build was most likely for a branch and not for a CL - no status
 		// needs to be reported back to Gerrit!
-		fmt.Println("This isn't a CL build, nothing to do. Have a nice day!")
+		fmt.Println("This isn't a %s build, nothing to do. Have a nice day!", cfg.GerritChangeName)
 		return
 	}
 

@@ -345,7 +345,7 @@ func buildTriggerFromPatchsetCreated(cfg *config) (*buildTrigger, error) {
 	var trigger buildTrigger
 
 	// Information that is only needed for parsing
-	var targetBranch, changeUrl, uploader string
+	var targetBranch, changeUrl, uploader, kind string
 
 	flag.StringVar(&trigger.project, "project", "", "Gerrit project")
 	flag.StringVar(&trigger.commit, "commit", "", "commit hash")
@@ -354,11 +354,17 @@ func buildTriggerFromPatchsetCreated(cfg *config) (*buildTrigger, error) {
 	flag.StringVar(&targetBranch, "branch", "", "CL target branch")
 	flag.StringVar(&changeUrl, "change-url", "", "HTTPS URL of change")
 	flag.StringVar(&uploader, "uploader", "", "Change uploader name & email")
+	flag.StringVar(&kind, "kind", "", "Kind of patchset")
 
 	// patchset-created also passes various flags which we don't need.
-	ignoreFlags([]string{"kind", "topic", "change", "uploader-username", "change-owner", "change-owner-username"})
+	ignoreFlags([]string{"topic", "change", "uploader-username", "change-owner", "change-owner-username"})
 
 	flag.Parse()
+
+	// Ignore patchsets which do not contain code changes
+	if kind == "NO_CODE_CHANGE" || kind == "NO_CHANGE" {
+		return nil, nil
+	}
 
 	// Parse username & email
 	err := extractChangeUploader(uploader, &trigger)

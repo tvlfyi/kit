@@ -16,6 +16,7 @@ let
     filter
     foldl'
     getEnv
+    hasAttr
     length
     listToAttrs
     mapAttrs
@@ -46,26 +47,24 @@ in rec {
       then "${label}:${target.__subtarget}"
       else label;
 
-  # Skip build steps if their out path has already been built.
-  skip = headBranch: target: let
-    shouldSkip =
-      # Only skip in real Buildkite builds
-      (getEnv "BUILDKITE_BUILD_ID" != "") &&
-      # Always build everything for the canon branch.
-      (getEnv "BUILDKITE_BRANCH" != headBranch) &&
-      # Discard string context to avoid realising the store path during
-      # pipeline construction.
-      (pathExists (unsafeDiscardStringContext target.outPath));
-    in if shouldSkip then "Target was already built." else false;
+  # Determine whether to skip a target if it has not diverged from the
+  # HEAD branch.
+  shouldSkip = parentTargetMap: label: drvPath:
+    if (hasAttr label parentTargetMap) && parentTargetMap."${label}".drvPath == drvPath
+    then "Target has not changed."
+    else false;
 
   # Create a pipeline step from a single target.
-  mkStep = headBranch: skipIfBuilt: target: {
-    label = ":nix: ${mkLabel target}";
-    skip = if skipIfBuilt then skip headBranch target else false;
+  mkStep = headBranch: parentTargetMap: target:
+  let
+    label = mkLabel target;
+    drvPath = unsafeDiscardStringContext target.drvPath;
+    shouldSkip' = shouldSkip parentTargetMap;
+  in {
+    label = ":nix: " + label;
+    skip = shouldSkip' label drvPath;
 
-    command = let
-      drvPath = unsafeDiscardStringContext target.drvPath;
-    in concatStringsSep " " [
+    command = concatStringsSep " " [
       # First try to realise the drvPath of the target so we don't evaluate twice.
       # Nix has no concept of depending on a derivation file without depending on
       # at least one of its `outPath`s, so we need to discard the string context
@@ -124,9 +123,10 @@ in rec {
     # possible, in order, without any concurrency restrictions.
     drvTargets,
 
-    # Should build steps be skipped (on non-HEAD builds) if the output
-    # path has already been built?
-    skipIfBuilt ? false,
+    # Derivation map of a parent commit. Only targets which no longer
+    # correspond to the content of this map will be built. Passing an
+    # empty map will always build all targets.
+    parentTargetMap ? {},
 
     # A list of plain Buildkite step structures to run alongside the
     # build for all drvTargets, but before proceeding with any
@@ -141,7 +141,7 @@ in rec {
     # Can be used for status reporting steps and the like.
     postBuildSteps ? []
   }: let
-    mkStep' = mkStep headBranch skipIfBuilt;
+    mkStep' = mkStep headBranch parentTargetMap;
     steps =
       # Add build steps for each derivation target.
       (map mkStep' drvTargets)

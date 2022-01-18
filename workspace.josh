@@ -1,0 +1,8 @@
+::LICENSE
+besadii = :/ops/besadii
+:/nix:[
+    ::buildGo/
+    ::buildkite/
+    ::readTree/
+]
+nixpkgs = :/third_party/nixpkgs

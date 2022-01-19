@@ -17,6 +17,9 @@ let
     foldl'
     getEnv
     hasAttr
+    hashString
+    isNull
+    isString
     length
     listToAttrs
     mapAttrs
@@ -54,6 +57,20 @@ in rec {
     then "Target has not changed."
     else false;
 
+  # Create build command for a derivation target.
+  mkBuildCommand = target: drvPath: concatStringsSep " " [
+    # First try to realise the drvPath of the target so we don't evaluate twice.
+    # Nix has no concept of depending on a derivation file without depending on
+    # at least one of its `outPath`s, so we need to discard the string context
+    # if we don't want to build everything during pipeline construction.
+    "nix-store --realise '${drvPath}' --add-root result --indirect"
+
+    # Since we don't gcroot the derivation files, they may be deleted by the
+    # garbage collector. In that case we can reevaluate and build the attribute
+    # using nix-build.
+    "|| (test ! -f '${drvPath}' && nix-build -E '${mkBuildExpr target}' --show-trace)"
+  ];
+
   # Create a pipeline step from a single target.
   mkStep = headBranch: parentTargetMap: target:
   let
@@ -62,19 +79,10 @@ in rec {
     shouldSkip' = shouldSkip parentTargetMap;
   in {
     label = ":nix: " + label;
+    key = hashString "sha1" label;
     skip = shouldSkip' label drvPath;
-
-    command = concatStringsSep " " [
-      # First try to realise the drvPath of the target so we don't evaluate twice.
-      # Nix has no concept of depending on a derivation file without depending on
-      # at least one of its `outPath`s, so we need to discard the string context
-      # if we don't want to build everything during pipeline construction.
-      "nix-store --realise '${drvPath}'"
-      # Since we don't gcroot the derivation files, they may be deleted by the
-      # garbage collector. In that case we can reevaluate and build the attribute
-      # using nix-build.
-      "|| (test ! -f '${drvPath}' && nix-build -E '${mkBuildExpr target}' --show-trace)"
-    ];
+    command = mkBuildCommand target drvPath;
+    env.READTREE_TARGET = label;
 
     # Add a dependency on the initial static pipeline step which
     # always runs. This allows build steps uploaded in batches to
@@ -141,10 +149,17 @@ in rec {
     # Can be used for status reporting steps and the like.
     postBuildSteps ? []
   }: let
-    mkStep' = mkStep headBranch parentTargetMap;
-    steps =
-      # Add build steps for each derivation target.
-      (map mkStep' drvTargets)
+    targetToSteps = target: let
+      step = mkStep headBranch parentTargetMap target;
+      extraSteps = (attrValues (mapAttrs (mkExtraStep step) (target.meta.ci.extraSteps or {})));
+    in [ step ] ++ extraSteps;
+
+    steps = map targetToSteps drvTargets;
+
+    allSteps =
+      # Add build steps for each derivation target and their extra
+      # steps.
+      (lib.concatLists steps)
 
       # Add additional steps (if set).
       ++ additionalSteps
@@ -157,7 +172,8 @@ in rec {
 
       # Run post-build steps for status reporting and co.
       ++ postBuildSteps;
-    chunks = pipelineChunks steps;
+
+    chunks = pipelineChunks allSteps;
   in runCommandNoCC "buildkite-pipeline" {} ''
     mkdir $out
     echo "Generated ${toString (length chunks)} pipeline chunks"
@@ -182,4 +198,56 @@ in rec {
       ];
     };
   }) drvTargets)));
+
+  # Implementation of extra step logic.
+  #
+  # Each target extra step is an attribute specified in
+  # `meta.ci.extraSteps`. Its attribute name will be used as the step
+  # name on Buildkite.
+  #
+  #   command (required): A command that will be run in the depot
+  #     checkout when this step is executed. Should be a derivation
+  #     resulting in a single executable file, e.g. through
+  #     pkgs.writeShellScript.
+  #
+  #   label (optional): Human-readable label for this step to display
+  #     in the Buildkite UI instead of the attribute name.
+  #
+  #   needsOutput (optional): If set to true, the parent derivation
+  #     will be built in the working directory before running the
+  #     command. Output will be available as 'result'.
+  #     TODO: Figure out multiple-output derivations.
+  #
+  #   condition (optional): Any other Buildkite condition, such as
+  #     specific branch requirements, for this step.
+  #     See https://buildkite.com/docs/pipelines/conditionals
+  #
+  #   alwaysRun (optional): If set to true, this step will always run,
+  #     even if its parent has not been rebuilt.
+
+  # Create the Buildkite configuration for an extra step.
+  mkExtraStep = parent: key: {
+    command,
+    label ? key,
+    needsOutput ? false,
+    condition ? null,
+    alwaysRun ? false
+  }@cfg: let
+    parentLabel = parent.env.READTREE_TARGET;
+    step = {
+      label = ":gear: ${label} (from ${parentLabel})";
+      skip = if alwaysRun then false else parent.skip or false;
+      "if" = condition;
+
+      depends_on = lib.optional (!alwaysRun && !needsOutput) parent.key;
+
+      command = pkgs.writeShellScript "${key}-script" ''
+        set -ueo pipefail
+        ${lib.optionalString needsOutput "echo '~~~ Preparing build output of ${parentLabel}'"}
+        ${lib.optionalString needsOutput parent.command}
+        echo '+++ Running extra step command'
+        exec ${command}
+      '';
+    };
+  in step;
 }

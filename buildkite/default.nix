@@ -23,6 +23,7 @@ let
     length
     listToAttrs
     mapAttrs
+    partition
     pathExists
     toJSON
     unsafeDiscardStringContext;
@@ -149,23 +150,49 @@ in rec {
     # Can be used for status reporting steps and the like.
     postBuildSteps ? []
   }: let
+    # Convert a target into all of its build and post-build steps,
+    # treated separately as they need to be in different chunks.
     targetToSteps = target: let
       step = mkStep headBranch parentTargetMap target;
-      extraSteps = (attrValues (mapAttrs (mkExtraStep step) (target.meta.ci.extraSteps or {})));
-    in [ step ] ++ extraSteps;
 
-    steps = map targetToSteps drvTargets;
+      # Split build/post-build steps
+      splitExtraSteps = partition ({ postStep, ... }: postStep)
+       (attrValues (mapAttrs (name: value: {
+         inherit name value;
+         postStep = value ? prompt;
+        }) (target.meta.ci.extraSteps or {})));
+
+      mkExtraStep' = { name, value, ... }: mkExtraStep step name value;
+      extraBuildSteps = map mkExtraStep' splitExtraSteps.wrong; # 'wrong' -> no prompt
+      extraPostSteps = map mkExtraStep' splitExtraSteps.right; # 'right' -> has prompt
+    in {
+      buildSteps = [ step ] ++ extraBuildSteps;
+      postSteps = extraPostSteps;
+    };
+
+    # Combine all target steps into separate build and post-build step lists.
+    steps = foldl' (acc: t: {
+      buildSteps = acc.buildSteps ++ t.buildSteps;
+      postSteps = acc.postSteps ++ t.postSteps;
+    }) { buildSteps = []; postSteps = []; } (map targetToSteps drvTargets);
 
     buildSteps =
       # Add build steps for each derivation target and their extra
       # steps.
-      (lib.concatLists steps)
+      steps.buildSteps
 
       # Add additional steps (if set).
       ++ additionalSteps;
 
+    postSteps =
+      # Add post-build steps for each derivation target.
+      steps.postSteps
+
+      # Add any globally defined post-build steps.
+      ++ postBuildSteps;
+
     buildChunks = pipelineChunks "build" buildSteps;
-    postBuildChunks = pipelineChunks "post" postBuildSteps;
+    postBuildChunks = pipelineChunks "post" postSteps;
     chunks = buildChunks ++ postBuildChunks;
   in runCommandNoCC "buildkite-pipeline" {} ''
     mkdir $out
@@ -206,6 +233,11 @@ in rec {
   #   label (optional): Human-readable label for this step to display
   #     in the Buildkite UI instead of the attribute name.
   #
+  #   prompt (optional): Setting this blocks the step until confirmed
+  #     by a human. Should be a string which is displayed for
+  #     confirmation. These steps always run after the main build is
+  #     done and have no influence on CI status.
+  #
   #   needsOutput (optional): If set to true, the parent derivation
   #     will be built in the working directory before running the
   #     command. Output will be available as 'result'.
@@ -217,11 +249,37 @@ in rec {
   #
   #   alwaysRun (optional): If set to true, this step will always run,
   #     even if its parent has not been rebuilt.
+  #
+  # Note that gated steps are independent of each other.
 
-  # Create the Buildkite configuration for an extra step.
+  # Create a gated step in a step group, independent from any other
+  # steps.
+  mkGatedStep = { step, label, parent, prompt, condition }: {
+    group = label;
+    depends_on = step.depends_on;
+    skip = parent.skip or false;
+    "if" = condition;
+
+    steps = [
+      {
+        inherit prompt;
+        block = ":radio_button: Run ${label}? (from ${parent.env.READTREE_TARGET})";
+        "if" = condition;
+      }
+
+      # The explicit depends_on of the wrapped step must be removed,
+      # otherwise its dependency relationship with the gate step will
+      # break.
+      (builtins.removeAttrs step [ "depends_on" ])
+    ];
+  };
+
+  # Create the Buildkite configuration for an extra step, optionally
+  # wrapping it in a gate group.
   mkExtraStep = parent: key: {
     command,
     label ? key,
+    prompt ? false,
     needsOutput ? false,
     condition ? null,
     alwaysRun ? false
@@ -242,5 +300,9 @@ in rec {
         exec ${command}
       '';
     };
-  in step;
+  in if (isString prompt)
+    then mkGatedStep {
+      inherit step label parent prompt condition;
+    }
+    else step;
 }

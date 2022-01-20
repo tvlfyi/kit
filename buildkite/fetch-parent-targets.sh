@@ -17,7 +17,7 @@ set -ueo pipefail
 
 git fetch -v origin "${BUILDKITE_PIPELINE_DEFAULT_BRANCH}"
 
-FIRST=$(git merge-base --fork-point FETCH_HEAD "${BUILDKITE_COMMIT}")
+FIRST=$(git merge-base FETCH_HEAD "${BUILDKITE_COMMIT}")
 SECOND=$(git rev-parse "$FIRST~1")
 THIRD=$(git rev-parse "$FIRST~2")
 

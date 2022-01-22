@@ -1,0 +1,8 @@
+# Build pipeline for the filtered //views/kit workspace of depot. This
+# pipeline is triggered by each build of canon.
+#
+# Pipeline status is visible on https://buildkite.com/tvl/tvl-kit
+
+steps:
+  - command: "nix-build --no-out-link -A besadii"
+    label: ":nix: besadii"

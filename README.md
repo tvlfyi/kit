@@ -1,6 +1,8 @@
 The TVL Kit
 ===========
 
+[![Build status](https://badge.buildkite.com/cd7240a881c7e77c3ed8cc040f81734623f57038563b37213d.svg?branch=canon)](https://buildkite.com/tvl/tvl-kit)
+
 This folder contains a publicly available version of the core TVL
 tooling, currently comprising of:
 

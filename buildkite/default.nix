@@ -243,9 +243,8 @@ in rec {
   #     command. Output will be available as 'result'.
   #     TODO: Figure out multiple-output derivations.
   #
-  #   condition (optional): Any other Buildkite condition, such as
-  #     specific branch requirements, for this step.
-  #     See https://buildkite.com/docs/pipelines/conditionals
+  #   branches (optional): Git references (branches, tags ... ) on
+  #     which this step should be allowed to run. List of strings.
   #
   #   alwaysRun (optional): If set to true, this step will always run,
   #     even if its parent has not been rebuilt.
@@ -254,17 +253,16 @@ in rec {
 
   # Create a gated step in a step group, independent from any other
   # steps.
-  mkGatedStep = { step, label, parent, prompt, condition }: {
+  mkGatedStep = { step, label, parent, prompt }: {
+    inherit (step) branches depends_on;
     group = label;
-    depends_on = step.depends_on;
     skip = parent.skip or false;
-    "if" = condition;
 
     steps = [
       {
+        inherit (step) branches;
         inherit prompt;
         block = ":radio_button: Run ${label}? (from ${parent.env.READTREE_TARGET})";
-        "if" = condition;
       }
 
       # The explicit depends_on of the wrapped step must be removed,
@@ -281,16 +279,16 @@ in rec {
     label ? key,
     prompt ? false,
     needsOutput ? false,
-    condition ? null,
+    branches ? null,
     alwaysRun ? false
   }@cfg: let
     parentLabel = parent.env.READTREE_TARGET;
+
     step = {
       label = ":gear: ${label} (from ${parentLabel})";
       skip = if alwaysRun then false else parent.skip or false;
-      "if" = condition;
-
       depends_on = lib.optional (!alwaysRun && !needsOutput) parent.key;
+      branches = if branches != null then lib.concatStringsSep " " branches else null;
 
       command = pkgs.writeShellScript "${key}-script" ''
         set -ueo pipefail
@@ -302,7 +300,7 @@ in rec {
     };
   in if (isString prompt)
     then mkGatedStep {
-      inherit step label parent prompt condition;
+      inherit step label parent prompt;
     }
     else step;
 }

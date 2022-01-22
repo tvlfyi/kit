@@ -104,8 +104,8 @@ in rec {
   # Define a build pipeline chunk as a JSON file, using the pipeline
   # format documented on
   # https://buildkite.com/docs/pipelines/defining-steps.
-  makePipelineChunk = chunkId: chunk: rec {
-    filename = "chunk-${chunkId}.json";
+  makePipelineChunk = name: chunkId: chunk: rec {
+    filename = "${name}-chunk-${chunkId}.json";
     path = writeText filename (toJSON {
       steps = chunk;
     });
@@ -115,8 +115,8 @@ in rec {
   # are uploaded sequentially. This is because of a limitation in the
   # Buildkite backend which struggles to process more than a specific
   # number of chunks at once.
-  pipelineChunks = steps:
-    attrValues (mapAttrs makePipelineChunk (chunksOf 256 steps));
+  pipelineChunks = name: steps:
+    attrValues (mapAttrs (makePipelineChunk name) (chunksOf 256 steps));
 
   # Create a pipeline structure for the given targets.
   mkPipeline = {
@@ -156,24 +156,17 @@ in rec {
 
     steps = map targetToSteps drvTargets;
 
-    allSteps =
+    buildSteps =
       # Add build steps for each derivation target and their extra
       # steps.
       (lib.concatLists steps)
 
       # Add additional steps (if set).
-      ++ additionalSteps
+      ++ additionalSteps;
 
-      # Wait for all previous checks to complete
-      ++ [({
-        wait = null;
-        continue_on_failure = true;
-      })]
-
-      # Run post-build steps for status reporting and co.
-      ++ postBuildSteps;
-
-    chunks = pipelineChunks allSteps;
+    buildChunks = pipelineChunks "build" buildSteps;
+    postBuildChunks = pipelineChunks "post" postBuildSteps;
+    chunks = buildChunks ++ postBuildChunks;
   in runCommandNoCC "buildkite-pipeline" {} ''
     mkdir $out
     echo "Generated ${toString (length chunks)} pipeline chunks"

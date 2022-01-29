@@ -117,7 +117,7 @@ in rec {
   # Buildkite backend which struggles to process more than a specific
   # number of chunks at once.
   pipelineChunks = name: steps:
-    attrValues (mapAttrs (makePipelineChunk name) (chunksOf 256 steps));
+    attrValues (mapAttrs (makePipelineChunk name) (chunksOf 192 steps));
 
   # Create a pipeline structure for the given targets.
   mkPipeline = {

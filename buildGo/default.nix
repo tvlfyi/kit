@@ -4,8 +4,9 @@
 # buildGo provides Nix functions to build Go packages in the style of Bazel's
 # rules_go.
 
-{ pkgs ? import <nixpkgs> {}
-, ... }:
+{ pkgs ? import <nixpkgs> { }
+, ...
+}:
 
 let
   inherit (builtins)
@@ -40,7 +41,7 @@ let
 
   xFlags = x_defs: spaceOut (map (k: "-X ${k}=${x_defs."${k}"}") (attrNames x_defs));
 
-  pathToName = p: replaceStrings ["/"] ["_"] (toString p);
+  pathToName = p: replaceStrings [ "/" ] [ "_" ] (toString p);
 
   # Add an `overrideGo` attribute to a function result that works
   # similar to `overrideAttrs`, but is used specifically for the
@@ -52,49 +53,50 @@ let
   # High-level build functions
 
   # Build a Go program out of the specified files and dependencies.
-  program = { name, srcs, deps ? [], x_defs ? {} }:
-  let uniqueDeps = allDeps (map (d: d.gopkg) deps);
-  in runCommand name {} ''
-    ${go}/bin/go tool compile -o ${name}.a -trimpath=$PWD -trimpath=${go} ${includeSources uniqueDeps} ${spaceOut srcs}
-    mkdir -p $out/bin
-    export GOROOT_FINAL=go
-    ${go}/bin/go tool link -o $out/bin/${name} -buildid nix ${xFlags x_defs} ${includeLibs uniqueDeps} ${name}.a
-  '';
+  program = { name, srcs, deps ? [ ], x_defs ? { } }:
+    let uniqueDeps = allDeps (map (d: d.gopkg) deps);
+    in runCommand name { } ''
+      ${go}/bin/go tool compile -o ${name}.a -trimpath=$PWD -trimpath=${go} ${includeSources uniqueDeps} ${spaceOut srcs}
+      mkdir -p $out/bin
+      export GOROOT_FINAL=go
+      ${go}/bin/go tool link -o $out/bin/${name} -buildid nix ${xFlags x_defs} ${includeLibs uniqueDeps} ${name}.a
+    '';
 
   # Build a Go library assembled out of the specified files.
   #
   # This outputs both the sources and compiled binary, as both are
   # needed when downstream packages depend on it.
-  package = { name, srcs, deps ? [], path ? name, sfiles ? [] }:
-  let
-    uniqueDeps = allDeps (map (d: d.gopkg) deps);
+  package = { name, srcs, deps ? [ ], path ? name, sfiles ? [ ] }:
+    let
+      uniqueDeps = allDeps (map (d: d.gopkg) deps);
 
-    # The build steps below need to be executed conditionally for Go
-    # assembly if the analyser detected any *.s files.
-    #
-    # This is required for several popular packages (e.g. x/sys).
-    ifAsm = do: lib.optionalString (sfiles != []) do;
-    asmBuild = ifAsm ''
-      ${go}/bin/go tool asm -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -gensymabis -o ./symabis ${spaceOut sfiles}
-      ${go}/bin/go tool asm -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -o ./asm.o ${spaceOut sfiles}
-    '';
-    asmLink = ifAsm "-symabis ./symabis -asmhdr $out/go_asm.h";
-    asmPack = ifAsm ''
-      ${go}/bin/go tool pack r $out/${path}.a ./asm.o
-    '';
+      # The build steps below need to be executed conditionally for Go
+      # assembly if the analyser detected any *.s files.
+      #
+      # This is required for several popular packages (e.g. x/sys).
+      ifAsm = do: lib.optionalString (sfiles != [ ]) do;
+      asmBuild = ifAsm ''
+        ${go}/bin/go tool asm -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -gensymabis -o ./symabis ${spaceOut sfiles}
+        ${go}/bin/go tool asm -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -o ./asm.o ${spaceOut sfiles}
+      '';
+      asmLink = ifAsm "-symabis ./symabis -asmhdr $out/go_asm.h";
+      asmPack = ifAsm ''
+        ${go}/bin/go tool pack r $out/${path}.a ./asm.o
+      '';
 
-    gopkg = (runCommand "golib-${name}" {} ''
-      mkdir -p $out/${path}
-      ${srcList path (map (s: "${s}") srcs)}
-      ${asmBuild}
-      ${go}/bin/go tool compile -pack ${asmLink} -o $out/${path}.a -trimpath=$PWD -trimpath=${go} -p ${path} ${includeSources uniqueDeps} ${spaceOut srcs}
-      ${asmPack}
-    '') // {
-      inherit gopkg;
-      goDeps = uniqueDeps;
-      goImportPath = path;
-    };
-  in gopkg;
+      gopkg = (runCommand "golib-${name}" { } ''
+        mkdir -p $out/${path}
+        ${srcList path (map (s: "${s}") srcs)}
+        ${asmBuild}
+        ${go}/bin/go tool compile -pack ${asmLink} -o $out/${path}.a -trimpath=$PWD -trimpath=${go} -p ${path} ${includeSources uniqueDeps} ${spaceOut srcs}
+        ${asmPack}
+      '') // {
+        inherit gopkg;
+        goDeps = uniqueDeps;
+        goImportPath = path;
+      };
+    in
+    gopkg;
 
   # Build a tree of Go libraries out of an external Go source
   # directory that follows the standard Go layout and was not built
@@ -110,10 +112,10 @@ let
   };
 
   # Build a Go library out of the specified protobuf definition.
-  proto = { name, proto, path ? name, goPackage ? name, extraDeps ? [] }: (makeOverridable package) {
+  proto = { name, proto, path ? name, goPackage ? name, extraDeps ? [ ] }: (makeOverridable package) {
     inherit name path;
     deps = [ protoLibs.goProto.proto.gopkg ] ++ extraDeps;
-    srcs = lib.singleton (runCommand "goproto-${name}.pb.go" {} ''
+    srcs = lib.singleton (runCommand "goproto-${name}.pb.go" { } ''
       cp ${proto} ${baseNameOf proto}
       ${protobuf}/bin/protoc --plugin=${protoLibs.goProto.protoc-gen-go.gopkg}/bin/protoc-gen-go \
         --go_out=plugins=grpc,import_path=${baseNameOf path}:. ${baseNameOf proto}
@@ -124,7 +126,8 @@ let
   # Build a Go library out of the specified gRPC definition.
   grpc = args: proto (args // { extraDeps = [ protoLibs.goGrpc.gopkg ]; });
 
-in {
+in
+{
   # Only the high-level builder functions are exposed, but made
   # overrideable.
   program = makeOverridable program;

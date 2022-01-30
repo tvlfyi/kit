@@ -8,7 +8,8 @@
 
 let
   inherit (builtins) fetchGit map;
-in rec {
+in
+rec {
   goProto = external {
     path = "github.com/golang/protobuf";
     src = fetchGit {

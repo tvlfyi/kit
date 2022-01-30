@@ -10,13 +10,13 @@ let
 
   tree-ex = depot.nix.readTree {
     path = ./test-example;
-    args = {};
+    args = { };
   };
 
   example = it "corresponds to the README example" [
     (assertEq "third_party attrset"
       (lib.isAttrs tree-ex.third_party
-      && (! lib.isDerivation tree-ex.third_party))
+        && (! lib.isDerivation tree-ex.third_party))
       true)
     (assertEq "third_party attrset other attribute"
       tree-ex.third_party.favouriteColour
@@ -37,7 +37,7 @@ let
 
   tree-tl = depot.nix.readTree {
     path = ./test-tree-traversal;
-    args = {};
+    args = { };
   };
 
   traversal-logic = it "corresponds to the traversal logic in the README" [
@@ -82,7 +82,7 @@ let
       "Picked up through the drv")
     (assertEq "default.nix drv is not changed by readTree"
       tree-tl.default-nix.can-be-drv
-      (import ./test-tree-traversal/default-nix/can-be-drv/default.nix {}))
+      (import ./test-tree-traversal/default-nix/can-be-drv/default.nix { }))
   ];
 
   # these each call readTree themselves because the throws have to happen inside assertThrows
@@ -90,7 +90,7 @@ let
     (assertThrows "this file is not a function"
       (depot.nix.readTree {
         path = ./test-wrong-not-a-function;
-        args = {};
+        args = { };
       }).not-a-function)
     # can’t test for that, assertThrows can’t catch this error
     # (assertThrows "this file is a function but doesn’t have dots"
@@ -99,12 +99,13 @@ let
 
   read-markers = depot.nix.readTree {
     path = ./test-marker;
-    args = {};
+    args = { };
   };
 
   assertMarkerByPath = path:
     assertEq "${lib.concatStringsSep "." path} is marked correctly"
-      (lib.getAttrFromPath path read-markers).__readTree path;
+      (lib.getAttrFromPath path read-markers).__readTree
+      path;
 
   markers = it "marks nodes correctly" [
     (assertMarkerByPath [ "directory-marked" ])
@@ -119,7 +120,8 @@ let
       read-markers.directory-marked.nested.__readTreeChildren [ ])
   ];
 
-in runTestsuite "readTree" [
+in
+runTestsuite "readTree" [
   example
   traversal-logic
   wrong

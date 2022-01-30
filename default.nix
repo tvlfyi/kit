@@ -8,7 +8,7 @@
 
 { pkgs ? import ./nixpkgs { depotOverlays = false; }, ... }:
 
-pkgs.lib.fix(self: {
+pkgs.lib.fix (self: {
   buildGo = import ./buildGo { inherit pkgs; };
   buildkite = import ./buildkite { inherit pkgs; };
   readTree = import ./readTree { };

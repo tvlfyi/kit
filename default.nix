@@ -6,7 +6,12 @@
 # it simple. Adding it may be useful if we set up test scaffolding
 # around the exported workspace.
 
-{ pkgs ? import ./nixpkgs { depotOverlays = false; }, ... }:
+{ pkgs ? (import ./nixpkgs {
+    depotOverlays = false;
+    depot.third_party.sources = import ./sources { };
+  })
+, ...
+}:
 
 pkgs.lib.fix (self: {
   buildGo = import ./buildGo { inherit pkgs; };

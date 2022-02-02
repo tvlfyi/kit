@@ -58,6 +58,17 @@ let
     __readTreeChildren = builtins.attrNames children;
   };
 
+  # Merge two attribute sets, but place attributes in `passthru` via
+  # `overrideAttrs` for derivation targets that support it.
+  merge = a: b:
+    if a ? overrideAttrs
+    then
+      a.overrideAttrs
+        (prev: {
+          passthru = (prev.passthru or { }) // b;
+        })
+    else a // b;
+
   # Import a file and enforce our calling convention
   importFile = args: scopedArgs: path: parts: filter:
     let
@@ -122,7 +133,7 @@ let
             name = c;
             value =
               if isAttrs imported
-              then imported // marker childParts { }
+              then merge imported (marker childParts { })
               else imported;
           })
         nixFiles;
@@ -137,7 +148,7 @@ let
 
     in
     if isAttrs nodeValue
-    then nodeValue // allChildren // (marker parts allChildren)
+    then merge nodeValue (allChildren // (marker parts allChildren))
     else nodeValue;
 
   # Function which can be used to find all readTree targets within an

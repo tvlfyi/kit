@@ -90,11 +90,13 @@ let
         ${asmBuild}
         ${go}/bin/go tool compile -pack ${asmLink} -o $out/${path}.a -trimpath=$PWD -trimpath=${go} -p ${path} ${includeSources uniqueDeps} ${spaceOut srcs}
         ${asmPack}
-      '') // {
-        inherit gopkg;
-        goDeps = uniqueDeps;
-        goImportPath = path;
-      };
+      '').overrideAttrs (_: {
+        passthru = {
+          inherit gopkg;
+          goDeps = uniqueDeps;
+          goImportPath = path;
+        };
+      });
     in
     gopkg;
 

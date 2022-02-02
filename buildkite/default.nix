@@ -159,6 +159,13 @@ rec {
         let
           step = mkStep headBranch parentTargetMap target;
 
+          # Same step, but with an override function applied. This is
+          # used in mkExtraStep if the extra step needs to modify the
+          # parent derivation somehow.
+          #
+          # Note that this will never affect the label.
+          overridable = f: mkStep headBranch parentTargetMap (f target);
+
           # Split build/post-build steps
           splitExtraSteps = partition ({ postStep, ... }: postStep)
             (attrValues (mapAttrs
@@ -168,7 +175,7 @@ rec {
               })
               (target.meta.ci.extraSteps or { })));
 
-          mkExtraStep' = { name, value, ... }: mkExtraStep step name value;
+          mkExtraStep' = { name, value, ... }: mkExtraStep overridable name value;
           extraBuildSteps = map mkExtraStep' splitExtraSteps.wrong; # 'wrong' -> no prompt
           extraPostSteps = map mkExtraStep' splitExtraSteps.right; # 'right' -> has prompt
         in
@@ -260,6 +267,10 @@ rec {
   #     command. Output will be available as 'result'.
   #     TODO: Figure out multiple-output derivations.
   #
+  #   parentOverride (optional): A function (drv -> drv) to override
+  #     the parent's target definition when preparing its output. Only
+  #     used in extra steps that use needsOutput.
+  #
   #   branches (optional): Git references (branches, tags ... ) on
   #     which this step should be allowed to run. List of strings.
   #
@@ -291,15 +302,18 @@ rec {
 
   # Create the Buildkite configuration for an extra step, optionally
   # wrapping it in a gate group.
-  mkExtraStep = parent: key: { command
-                             , label ? key
-                             , prompt ? false
-                             , needsOutput ? false
-                             , branches ? null
-                             , alwaysRun ? false
-                             , postBuild ? false
-                             }@cfg:
+  mkExtraStep = overridableParent: key:
+    { command
+    , label ? key
+    , prompt ? false
+    , needsOutput ? false
+    , parentOverride ? (x: x)
+    , branches ? null
+    , alwaysRun ? false
+    , postBuild ? false
+    }@cfg:
     let
+      parent = overridableParent parentOverride;
       parentLabel = parent.env.READTREE_TARGET;
 
       step = {

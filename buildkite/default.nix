@@ -66,7 +66,7 @@ rec {
     # Nix has no concept of depending on a derivation file without depending on
     # at least one of its `outPath`s, so we need to discard the string context
     # if we don't want to build everything during pipeline construction.
-    "nix-store --realise '${drvPath}' --add-root result --indirect"
+    "(nix-store --realise '${drvPath}' --add-root result --indirect && readlink result)"
 
     # Since we don't gcroot the derivation files, they may be deleted by the
     # garbage collector. In that case we can reevaluate and build the attribute

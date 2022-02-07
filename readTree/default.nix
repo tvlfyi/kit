@@ -158,12 +158,27 @@ let
     then merge nodeValue (allChildren // (marker parts allChildren))
     else nodeValue;
 
+  # Helper function to fetch subtargets from a target. This is a
+  # temporary helper to warn on the use of the `meta.targets`
+  # attribute, which is deprecated in favour of `meta.ci.targets`.
+  subtargets = node:
+    let targets = (node.meta.targets or [ ]) ++ (node.meta.ci.targets or [ ]);
+    in if node ? meta.targets then
+      builtins.trace ''
+        [1;31mWarning: The meta.targets attribute is deprecated.
+
+        Please move the subtargets of //${mkLabel node} to the
+        meta.ci.targets attribute.
+        [0m
+      ''
+        targets else targets;
+
   # Function which can be used to find all readTree targets within an
   # attribute set.
   #
   # This function will gather physical targets, that is targets which
   # correspond directly to a location in the repository, as well as
-  # subtargets (specified in the meta.targets attribute of a node).
+  # subtargets (specified in the meta.ci.targets attribute of a node).
   #
   # This can be used to discover targets for inclusion in CI
   # pipelines.
@@ -187,7 +202,7 @@ let
           __readTreeChildren = [ ];
           __subtarget = k;
         })
-        (node.meta.targets or [ ]))
+        (subtargets node))
     else [ ];
 
   # Determine whether a given value is a derivation.
@@ -249,16 +264,21 @@ in
   # It is often required to create the args attribute set.
   fix = f: let x = f x; in x;
 
-  # Takes an attribute set and adds a meta.targets attribute to it
+  # Takes an attribute set and adds a meta.ci.targets attribute to it
   # which contains all direct children of the attribute set which are
   # derivations.
   #
   # Type: attrs -> attrs
-  drvTargets = attrs: attrs // {
-    meta = {
-      targets = builtins.filter
-        (x: isDerivation attrs."${x}")
-        (builtins.attrNames attrs);
-    } // (attrs.meta or { });
-  };
+  drvTargets = attrs:
+    attrs // {
+      # preserve .meta from original attrs
+      meta = (attrs.meta or { }) // {
+        # preserve .meta.ci (except .targets) from original attrs
+        ci = (attrs.meta.ci or { }) // {
+          targets = builtins.filter
+            (x: isDerivation attrs."${x}")
+            (builtins.attrNames attrs);
+        };
+      };
+    };
 }

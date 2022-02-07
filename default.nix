@@ -15,8 +15,12 @@
 
 pkgs.lib.fix (self: {
   buildGo = import ./buildGo { inherit pkgs; };
-  buildkite = import ./buildkite { inherit pkgs; };
   readTree = import ./readTree { };
+
+  buildkite = import ./buildkite {
+    inherit pkgs;
+    depot.nix.readTree = self.readTree;
+  };
 
   besadii = import ./besadii {
     depot.nix.buildGo = self.buildGo;

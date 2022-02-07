@@ -58,6 +58,13 @@ let
     __readTreeChildren = builtins.attrNames children;
   };
 
+  # Create a label from a target's tree location.
+  mkLabel = target:
+    let label = concatStringsSep "/" target.__readTree;
+    in if target ? __subtarget
+    then "${label}:${target.__subtarget}"
+    else label;
+
   # Merge two attribute sets, but place attributes in `passthru` via
   # `overrideAttrs` for derivation targets that support it.
   merge = a: b:
@@ -188,7 +195,7 @@ let
   isDerivation = x: isAttrs x && x ? type && x.type == "derivation";
 in
 {
-  inherit gather;
+  inherit gather mkLabel;
 
   __functor = _:
     { path

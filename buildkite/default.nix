@@ -6,7 +6,7 @@
 #
 # The structure of the file that is being created is documented here:
 #   https://buildkite.com/docs/pipelines/defining-steps
-{ pkgs, ... }:
+{ depot, pkgs, ... }:
 
 let
   inherit (builtins)
@@ -29,6 +29,7 @@ let
     unsafeDiscardStringContext;
 
   inherit (pkgs) lib runCommandNoCC writeText;
+  inherit (depot.nix.readTree) mkLabel;
 in
 rec {
   # Creates a Nix expression that yields the target at the specified
@@ -45,13 +46,6 @@ rec {
       subtargetExpr = descend targetExpr target.__subtarget;
     in
     if target ? __subtarget then subtargetExpr else targetExpr;
-
-  # Create a pipeline label from the target's tree location.
-  mkLabel = target:
-    let label = concatStringsSep "/" target.__readTree;
-    in if target ? __subtarget
-    then "${label}:${target.__subtarget}"
-    else label;
 
   # Determine whether to skip a target if it has not diverged from the
   # HEAD branch.

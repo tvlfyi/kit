@@ -6,3 +6,5 @@
 steps:
   - command: "nix-build --no-out-link -A besadii"
     label: ":nix: besadii"
+  - command: "nix-build --no-out-link -A magrathea"
+    label: ":nix: magrathea"

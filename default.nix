@@ -25,4 +25,6 @@ pkgs.lib.fix (self: {
   besadii = import ./besadii {
     depot.nix.buildGo = self.buildGo;
   };
+
+  magrathea = import ./magrathea { inherit pkgs; };
 })

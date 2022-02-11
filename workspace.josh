@@ -9,3 +9,4 @@ besadii = :/ops/besadii
     ::nixpkgs/
     ::sources/
 ]
+magrathea = :/tools/magrathea

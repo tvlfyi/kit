@@ -11,6 +11,8 @@
         (chicken format)
         (chicken irregex)
         (chicken port)
+        (chicken file)
+        (chicken file posix)
         (chicken process)
         (chicken process-context)
         (chicken string)
@@ -37,6 +39,7 @@ commands:
   build - build a target
   shell - enter a shell with the target's build dependencies
   path  - print source folder for the target
+  run   - build a target and execute its output
 
 file all feedback on b.tvl.fyi
 USAGE
@@ -243,6 +246,50 @@ USAGE
                  (guarantee-success (parse-target arg)))]
          [other (print "not yet implemented")]))
 
+(define (execute-run t #!optional cmd-args)
+  (fprintf (current-error-port) "[mg] building target ~A~%" t)
+  (let* ((expr (nix-expr-for t))
+         (out (call-with-input-pipe
+               (apply string-append
+                      ;; TODO(sterni): temporary gc root
+                      (intersperse `("nix-build" "-E" ,(qs expr) "--no-out-link")
+                                   " "))
+               (lambda (p)
+                 (string-chomp (let ((s (read-string #f p)))
+                                 (if (eq? s #!eof) "" s)))))))
+
+    ;; TODO(sterni): can we get the exit code of nix-build somehow?
+    (when (= (string-length out) 0)
+      (mg-error (string-append "Couldn't build target " (format "~A" t)))
+      (exit 1))
+
+    (fprintf (current-error-port) "[mg] running target ~A~%" t)
+    (process-execute
+     ;; If the output is a file, we assume it's an executable à la writeExecline,
+     ;; otherwise we look in the bin subdirectory and pick the only executable.
+     ;; Handling multiple executables is not possible at the moment, the choice
+     ;; could be made via a command line flag in the future.
+     (if (regular-file? out)
+         out
+         (let* ((dir-path (string-append out "/bin"))
+                (dir-contents (if (directory-exists? dir-path)
+                                  (directory dir-path #f)
+                                  '())))
+           (case (length dir-contents)
+             ((0) (mg-error "no executables in build output")
+                  (exit 1))
+             ((1) (string-append dir-path "/" (car dir-contents)))
+             (else (mg-error "more than one executable in build output")
+                   (exit 1)))))
+     cmd-args)))
+
+(define (run args)
+  (match args
+         [() (execute-run (empty-target))]
+         ;; TODO(sterni): flag for selecting binary name
+         [other (execute-run (guarantee-success (parse-target (car args)))
+                             (cdr args))]))
+
 (define (path args)
   (match args
          [(arg)
@@ -262,6 +309,7 @@ USAGE
          [("build" . _) (build (cdr args))]
          [("shell" . _) (shell (cdr args))]
          [("path" . _) (path (cdr args))]
+         [("run" . _) (run (cdr args))]
          [other (begin (print "unknown command: mg " args)
                        (print usage))]))
 

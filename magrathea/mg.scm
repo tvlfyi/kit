@@ -214,7 +214,7 @@ USAGE
 
 (define (execute-build t)
   (let ((expr (nix-expr-for t)))
-    (printf "[mg] building target ~A~%" t)
+    (fprintf (current-error-port) "[mg] building target ~A~%" t)
     (process-execute "nix-build" (list "-E" expr "--show-trace"))))
 
 (define (build args)
@@ -232,7 +232,7 @@ USAGE
 (define (execute-shell t)
   (let ((expr (nix-expr-for t))
         (user-shell (or (get-environment-variable "SHELL") "bash")))
-    (printf "[mg] entering shell for ~A~%" t)
+    (fprintf (current-error-port) "[mg] entering shell for ~A~%" t)
     (process-execute "nix-shell"
                      (list "-E" expr "--command" user-shell))))
 

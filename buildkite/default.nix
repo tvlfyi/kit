@@ -276,7 +276,7 @@ rec {
   # Create a gated step in a step group, independent from any other
   # steps.
   mkGatedStep = { step, label, parent, prompt }: {
-    inherit (step) branches depends_on;
+    inherit (step) depends_on;
     group = label;
     skip = parent.skip or false;
 

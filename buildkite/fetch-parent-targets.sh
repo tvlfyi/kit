@@ -14,6 +14,7 @@ set -ueo pipefail
 # build all targets.
 
 : ${DRVMAP_PATH:=pipeline/drvmap.json}
+: ${BUILDKITE_TOKEN_PATH:=~/buildkite-token}
 
 git fetch -v origin "${BUILDKITE_PIPELINE_DEFAULT_BRANCH}"
 
@@ -25,7 +26,7 @@ function most_relevant_builds {
     set -u
     curl 'https://graphql.buildkite.com/v1' \
          --silent \
-         -H "Authorization: Bearer $(cat /run/agenix/buildkite-graphql-token)" \
+         -H "Authorization: Bearer $(cat ${BUILDKITE_TOKEN_PATH})" \
          -d "{\"query\": \"query { pipeline(slug: \\\"$BUILDKITE_ORGANIZATION_SLUG/$BUILDKITE_PIPELINE_SLUG\\\") { builds(commit: [\\\"$FIRST\\\",\\\"$SECOND\\\",\\\"$THIRD\\\"]) { edges { node { uuid }}}}}\"}" | \
          jq -r '.data.pipeline.builds.edges[] | .node.uuid'
 }

@@ -475,7 +475,7 @@ func postCommandMain(cfg *config) {
 		// If these variables are unset, but the hook was invoked, the
 		// build was most likely for a branch and not for a CL - no status
 		// needs to be reported back to Gerrit!
-		fmt.Println("This isn't a %s build, nothing to do. Have a nice day!", cfg.GerritChangeName)
+		fmt.Printf("This isn't a %s build, nothing to do. Have a nice day!\n", cfg.GerritChangeName)
 		return
 	}
 

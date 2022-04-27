@@ -215,22 +215,65 @@ USAGE
          [('error . message) (mg-error message)]
          [_ value]))
 
-(define (execute-build t)
-  (let ((expr (nix-expr-for t)))
-    (fprintf (current-error-port) "[mg] building target ~A~%" t)
-    (process-execute "nix-build" (list "-E" expr "--show-trace"))))
+(define-record build-args target passthru unknown)
+(define (execute-build args)
+  (let ((expr (nix-expr-for (build-args-target args))))
+    (fprintf (current-error-port) "[mg] building target ~A~%" (build-args-target args))
+    (process-execute "nix-build" (append (list "-E" expr "--show-trace")
+                                         (or (build-args-passthru args) '())))))
 
-(define (build args)
+;; split the arguments used for builds into target/unknown args/nix
+;; args, where the latter occur after '--'
+(define (parse-build-args acc args)
   (match args
-         ;; simplest case: plain mg build with no target spec -> build
-         ;; the current folder's main target.
-         [() (execute-build (empty-target))]
+         ;; no arguments remaining, return accumulator as is
+         [() acc]
 
-         ;; single argument should be a target spec
-         [(arg) (execute-build
-                 (guarantee-success (parse-target arg)))]
+         ;; next argument is '--' separator, split off passthru and
+         ;; return
+         [("--" . passthru)
+          (begin
+            (build-args-passthru-set! acc passthru)
+            acc)]
 
-         [other (print "not yet implemented")]))
+         [(arg . rest)
+          ;; set target if not already known (and if the first
+          ;; argument does not look like an accidental unknown
+          ;; parameter)
+          (if (and (not (build-args-target acc))
+                   (not (substring=? "-" arg)))
+              (begin
+                (build-args-target-set! acc (guarantee-success (parse-target arg)))
+                (parse-build-args acc rest))
+
+              ;; otherwise, collect unknown arguments
+              (begin
+                (build-args-unknown-set! acc (append (or (build-args-unknown acc) '())
+                                                     (list arg)))
+                (parse-build-args acc rest)))]))
+
+;; parse the passed build args, applying sanity checks and defaulting
+;; the target if necessary, then execute the build
+(define (build args)
+  (let ((parsed (parse-build-args (make-build-args #f #f #f) args)))
+    ;; fail if there are unknown arguments present
+    (when (build-args-unknown parsed)
+      (let ((unknown (string-intersperse (build-args-unknown parsed))))
+        (mg-error (sprintf "unknown arguments: ~a
+
+if you meant to pass these arguments to nix, please separate them with
+'--' like so:
+
+  mg build ~a -- ~a"
+                        unknown
+                        (or (build-args-target parsed) "")
+                        unknown))))
+
+    ;; default the target to the current folder's main target
+    (unless (build-args-target parsed)
+      (build-args-target-set! parsed (empty-target)))
+
+    (execute-build parsed)))
 
 (define (execute-shell t)
   (let ((expr (nix-expr-for t))

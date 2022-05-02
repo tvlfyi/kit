@@ -14,17 +14,18 @@
 }:
 
 pkgs.lib.fix (self: {
+  besadii = import ./besadii {
+    depot.nix.buildGo = self.buildGo;
+  };
+
   buildGo = import ./buildGo { inherit pkgs; };
-  readTree = import ./readTree { };
 
   buildkite = import ./buildkite {
     inherit pkgs;
     depot.nix.readTree = self.readTree;
   };
 
-  besadii = import ./besadii {
-    depot.nix.buildGo = self.buildGo;
-  };
-
+  lazy-deps = import ./lazy-deps { inherit pkgs; };
   magrathea = import ./magrathea { inherit pkgs; };
+  readTree = import ./readTree { };
 })

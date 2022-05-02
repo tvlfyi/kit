@@ -6,5 +6,11 @@
 steps:
   - command: "nix-build --no-out-link -A besadii"
     label: ":nix: besadii"
+
   - command: "nix-build --no-out-link -A magrathea"
     label: ":nix: magrathea"
+
+  - label: ":nix: lazy-deps"
+    command: |
+      nix-build -E 'with import ./. {}; lazy-deps { mg.attr = "magrathea"; }'
+      result/bin/mg

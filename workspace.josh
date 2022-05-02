@@ -3,6 +3,7 @@ besadii = :/ops/besadii
 :/nix:[
     ::buildGo/
     ::buildkite/
+    ::lazy-deps/
     ::readTree/
 ]
 :/third_party:[

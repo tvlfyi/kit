@@ -12,6 +12,7 @@ tooling, currently comprising of:
 * `readTree`: Nix library to dynamically compute attribute trees
   corresponding to the physical layout of a repository.
 * `besadii`: Configurable Gerrit/Buildkite integration hook.
+* `magrathea`: Command-line tool for working with TVL-style monorepos
 
 It can be accessed via git by cloning it as such:
 

@@ -38,38 +38,46 @@ in
   # derivation.
 tools:
 
-pkgs.writeTextFile {
-  name = "lazy-dispatch";
-  executable = true;
-  destination = "/bin/__dispatch";
+let
+  self = pkgs.runCommandNoCC "lazy-dispatch"
+    {
+      text = ''
+        #!${pkgs.runtimeShell}
+        set -ue
 
-  text = ''
-    #!${pkgs.runtimeShell}
-    set -ue
+        if ! type git>/dev/null || ! type nix-build>/dev/null; then
+          echo "The 'git' and 'nix-build' commands must be available." >&2
+          exit 127
+        fi
 
-    if ! type git>/dev/null || ! type nix-build>/dev/null; then
-      echo "The 'git' and 'nix-build' commands must be available." >&2
-      exit 127
-    fi
+        readonly REPO_ROOT=$(git rev-parse --show-toplevel)
+        TARGET_TOOL=$(basename "$0")
 
-    readonly REPO_ROOT=$(git rev-parse --show-toplevel)
-    TARGET_TOOL=$(basename "$0")
+        case "''${TARGET_TOOL}" in
+        ${invocations tools}
+        *)
+          echo "''${TARGET_TOOL} is currently not installed in this repository." >&2
+          exit 127
+          ;;
+        esac
 
-    case "''${TARGET_TOOL}" in
-    ${invocations tools}
-    *)
-      echo "''${TARGET_TOOL} is currently not installed in this repository." >&2
-      exit 127
-      ;;
-    esac
+        result=$(nix-build --no-out-link --attr "''${attr}" "''${REPO_ROOT}")
+        PATH="''${result}/bin:$PATH"
+        exec "''${TARGET_TOOL}" "''${@}"
+      '';
+    }
+    ''
+      # Write the dispatch code
+      target=$out/bin/__dispatch
+      mkdir -p "$(dirname "$target")"
+      echo "$text" > $target
+      chmod +x $target
 
-    result=$(nix-build --no-out-link --attr "''${attr}" "''${REPO_ROOT}")
-    PATH="''${result}/bin:$PATH"
-    exec "''${TARGET_TOOL}" "''${@}"
-  '';
+      # Add symlinks from all the tools to the dispatch
+      ${concatStringsSep "\n" (map link (attrNames tools))}
 
-  checkPhase = ''
-    ${pkgs.stdenv.shellDryRun} "$target"
-    ${concatStringsSep "\n" (map link (attrNames tools))}
-  '';
-}
+      # Check that it's working-ish
+      ${pkgs.stdenv.shellDryRun} $target
+    '';
+in
+self

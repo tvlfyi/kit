@@ -65,6 +65,12 @@ let
         PATH="''${result}/bin:$PATH"
         exec "''${TARGET_TOOL}" "''${@}"
       '';
+
+      # Access this to get a compatible nix-shell
+      passthru.devShell = pkgs.mkShellNoCC {
+        name = "${self.name}-shell";
+        packages = [ self ];
+      };
     }
     ''
       # Write the dispatch code

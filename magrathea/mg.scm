@@ -39,6 +39,7 @@ commands:
   build - build a target
   shell - enter a shell with the target's build dependencies
   path  - print source folder for the target
+  repl  - start a nix repl in the repository root
   run   - build a target and execute its output
 
 file all feedback on b.tvl.fyi
@@ -289,6 +290,9 @@ if you meant to pass these arguments to nix, please separate them with
                  (guarantee-success (parse-target arg)))]
          [other (print "not yet implemented")]))
 
+(define (repl args)
+  (process-execute "nix" (append (list "repl" "--show-trace" (repository-root)) args)))
+
 (define (execute-run t #!optional cmd-args)
   (fprintf (current-error-port) "[mg] building target ~A~%" t)
   (let* ((expr (nix-expr-for t))
@@ -352,6 +356,7 @@ if you meant to pass these arguments to nix, please separate them with
          [("build" . _) (build (cdr args))]
          [("shell" . _) (shell (cdr args))]
          [("path" . _) (path (cdr args))]
+         [("repl" . _) (repl (cdr args))]
          [("run" . _) (run (cdr args))]
          [other (begin (print "unknown command: mg " args)
                        (print usage))]))

@@ -11,11 +11,9 @@
 let
   inherit (builtins)
     attrValues
-    concatMap
+    concatLists
     concatStringsSep
-    filter
     foldl'
-    getEnv
     hasAttr
     hashString
     isNull
@@ -23,8 +21,6 @@ let
     length
     listToAttrs
     mapAttrs
-    partition
-    pathExists
     toJSON
     unsafeDiscardStringContext;
 
@@ -147,8 +143,15 @@ rec {
       postBuildSteps ? [ ]
     }:
     let
-      # Convert a target into all of its build and post-build steps,
-      # treated separately as they need to be in different chunks.
+      # List of phases to include. Currently the only phases are 'build'
+      # (Nix builds and extra steps that are not post-build steps) and
+      # 'post' (all post-build steps).
+      #
+      # TODO(tazjin): Configurable set of phases.
+      phases = [ "build" "release" ];
+
+      # Convert a target into all of its steps, separated by build
+      # phase (as phases end up in different chunks).
       targetToSteps = target:
         let
           step = mkStep headBranch parentTargetMap target;
@@ -160,51 +163,38 @@ rec {
           # Note that this will never affect the label.
           overridable = f: mkStep headBranch parentTargetMap (f target);
 
-          # Split build/post-build steps
-          splitExtraSteps = partition ({ postStep, ... }: postStep)
-            (attrValues (mapAttrs
-              (name: value: {
-                inherit name value;
-                postStep = (value ? prompt) || (value.postBuild or false);
-              })
+          # Split extra steps by phase.
+          splitExtraSteps = lib.groupBy ({ phase, ... }: phase)
+            (attrValues (mapAttrs (normaliseExtraStep overridable)
               (target.meta.ci.extraSteps or { })));
 
-          mkExtraStep' = { name, value, ... }: mkExtraStep overridable name value;
-          extraBuildSteps = map mkExtraStep' splitExtraSteps.wrong; # 'wrong' -> no prompt
-          extraPostSteps = map mkExtraStep' splitExtraSteps.right; # 'right' -> has prompt
+          extraSteps = mapAttrs (_: steps: map mkExtraStep steps) splitExtraSteps;
         in
-        {
-          buildSteps = [ step ] ++ extraBuildSteps;
-          postSteps = extraPostSteps;
+        extraSteps // {
+          build = [ step ] ++ (extraSteps.build or [ ]);
         };
 
-      # Combine all target steps into separate build and post-build step lists.
-      steps = foldl'
-        (acc: t: {
-          buildSteps = acc.buildSteps ++ t.buildSteps;
-          postSteps = acc.postSteps ++ t.postSteps;
-        })
-        { buildSteps = [ ]; postSteps = [ ]; }
-        (map targetToSteps drvTargets);
+      # Combine all target steps into step lists per phase.
+      #
+      # TODO(tazjin): Refactor when configurable phases show up.
+      globalSteps = {
+        build = additionalSteps;
+        release = postBuildSteps;
+      };
 
-      buildSteps =
-        # Add build steps for each derivation target and their extra
-        # steps.
-        steps.buildSteps
+      phasesWithSteps = lib.zipAttrsWithNames phases (_: concatLists)
+        ((map targetToSteps drvTargets) ++ [ globalSteps ]);
 
-        # Add additional steps (if set).
-        ++ additionalSteps;
+      # Generate pipeline chunks for each phase.
+      chunks = foldl'
+        (acc: phase:
+          let phaseSteps = phasesWithSteps.${phase} or [ ]; in
+          if phaseSteps == [ ]
+          then acc
+          else acc ++ (pipelineChunks phase phaseSteps))
+        [ ]
+        phases;
 
-      postSteps =
-        # Add post-build steps for each derivation target.
-        steps.postSteps
-
-        # Add any globally defined post-build steps.
-        ++ postBuildSteps;
-
-      buildChunks = pipelineChunks "build" buildSteps;
-      postBuildChunks = pipelineChunks "release" postSteps;
-      chunks = buildChunks ++ postBuildChunks;
     in
     runCommandNoCC "buildkite-pipeline" { } ''
       mkdir $out
@@ -294,42 +284,97 @@ rec {
     ];
   };
 
-  # Create the Buildkite configuration for an extra step, optionally
-  # wrapping it in a gate group.
-  mkExtraStep = overridableParent: key:
+  # Validate and normalise extra step configuration before actually
+  # generating build steps, in order to use user-provided metadata
+  # during the pipeline generation.
+  normaliseExtraStep = overridableParent: key:
     { command
     , label ? key
-    , prompt ? false
     , needsOutput ? false
     , parentOverride ? (x: x)
     , branches ? null
     , alwaysRun ? false
-    , postBuild ? false
-    }@cfg:
+
+      # TODO(tazjin): Default to 'build' after 2022-10-01.
+    , phase ? if (isNull postBuild || !postBuild) then "build" else "release"
+
+      # TODO(tazjin): Forbid prompt steps in 'build' phase.
+    , prompt ? false
+
+      # TODO(tazjin): Turn into hard-failure after 2022-10-01.
+    , postBuild ? null
+    }:
     let
       parent = overridableParent parentOverride;
       parentLabel = parent.env.READTREE_TARGET;
+    in
+    {
+      inherit
+        alwaysRun
+        branches
+        command
+        key
+        label
+        needsOutput
+        parent
+        parentLabel
+        prompt;
 
+      # //nix/buildkite is growing a new feature for adding different
+      # "build phases" which supersedes the previous `postBuild`
+      # boolean API.
+      #
+      # To help users transition, emit warnings if the old API is used.
+      #
+      # TODO(tazjin): Validate available phases.
+      phase = lib.warnIfNot (isNull postBuild) ''
+        In step '${label}' (from ${parentLabel}):
+
+        Please note: The CI system is introducing support for running
+        steps in different build phases.
+
+        The currently supported phases are 'build' (all Nix targets,
+        extra steps such as tests that feed into the build results,
+        etc.) and 'release' (steps that run after builds and tests
+        have already completed).
+
+        This replaces the previous boolean `postBuild` API in extra
+        step definitions. Please remove the `postBuild` parameter from
+        this step and instead set `phase = ${phase};`.
+      ''
+        phase;
+    };
+
+  # Create the Buildkite configuration for an extra step, optionally
+  # wrapping it in a gate group.
+  mkExtraStep = cfg:
+    let
       step = {
-        label = ":gear: ${label} (from ${parentLabel})";
-        skip = if alwaysRun then false else parent.skip or false;
-        depends_on = lib.optional (!alwaysRun && !needsOutput) parent.key;
-        branches = if branches != null then lib.concatStringsSep " " branches else null;
+        label = ":gear: ${cfg.label} (from ${cfg.parentLabel})";
+        skip = if cfg.alwaysRun then false else cfg.parent.skip or false;
+        # TODO(tazjin): Remember to gate this behaviour with active phases.
+        depends_on = lib.optional (!cfg.alwaysRun && !cfg.needsOutput) cfg.parent.key;
+        branches =
+          if cfg.branches != null
+          then lib.concatStringsSep " " cfg.branches else null;
 
-        command = pkgs.writeShellScript "${key}-script" ''
+        command = pkgs.writeShellScript "${cfg.key}-script" ''
           set -ueo pipefail
-          ${lib.optionalString needsOutput "echo '~~~ Preparing build output of ${parentLabel}'"}
-          ${lib.optionalString needsOutput parent.command}
+          ${lib.optionalString cfg.needsOutput
+            "echo '~~~ Preparing build output of ${cfg.parentLabel}'"
+          }
+          ${lib.optionalString cfg.needsOutput cfg.parent.command}
           echo '+++ Running extra step command'
-          exec ${command}
+          exec ${cfg.command}
         '';
       };
     in
-    if (isString prompt)
+    if (isString cfg.prompt)
     then
       mkGatedStep
         {
-          inherit step label parent prompt;
+          inherit step;
+          inherit (cfg) label parent prompt;
         }
     else step;
 }

@@ -142,14 +142,26 @@ rec {
       #
       # Can be used for status reporting steps and the like.
       postBuildSteps ? [ ]
+    , # Build phases that are active for this invocation (i.e. their
+      # steps should be generated).
+      #
+      # This can be used to disable outputting parts of a pipeline if,
+      # for example, build and release phases are created in separate
+      # eval contexts.
+      #
+      # TODO(tazjin): Fail/warn if unknown phase is requested.
+      activePhases ? [ "build" "release" ]
     }:
     let
-      # List of phases to include. Currently the only phases are 'build'
-      # (Nix builds and extra steps that are not post-build steps) and
-      # 'post' (all post-build steps).
+      # Currently the only known phases are 'build' (Nix builds and
+      # extra steps that are not post-build steps) and 'release' (all
+      # post-build steps).
       #
-      # TODO(tazjin): Configurable set of phases.
-      phases = [ "build" "release" ];
+      # TODO(tazjin): Fully configurable set of phases?
+      knownPhases = [ "build" "release" ];
+
+      # List of phases to include.
+      phases = lib.intersectLists activePhases knownPhases;
 
       # Convert a target into all of its steps, separated by build
       # phase (as phases end up in different chunks).
@@ -166,7 +178,7 @@ rec {
 
           # Split extra steps by phase.
           splitExtraSteps = lib.groupBy ({ phase, ... }: phase)
-            (attrValues (mapAttrs (normaliseExtraStep phases overridable)
+            (attrValues (mapAttrs (normaliseExtraStep knownPhases overridable)
               (target.meta.ci.extraSteps or { })));
 
           extraSteps = mapAttrs (_: steps: map mkExtraStep steps) splitExtraSteps;

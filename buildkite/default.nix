@@ -163,6 +163,11 @@ rec {
       # List of phases to include.
       phases = lib.intersectLists activePhases knownPhases;
 
+      # Is the 'build' phase included? This phase is treated specially
+      # because it always contains the plain Nix builds, and some
+      # logic/optimisation depends on knowing whether is executing.
+      buildEnabled = elem "build" phases;
+
       # Convert a target into all of its steps, separated by build
       # phase (as phases end up in different chunks).
       targetToSteps = target:
@@ -181,7 +186,10 @@ rec {
             (attrValues (mapAttrs (normaliseExtraStep knownPhases overridable)
               (target.meta.ci.extraSteps or { })));
 
-          extraSteps = mapAttrs (_: steps: map mkExtraStep steps) splitExtraSteps;
+          extraSteps = mapAttrs
+            (_: steps:
+              map (mkExtraStep buildEnabled) steps)
+            splitExtraSteps;
         in
         extraSteps // {
           build = [ step ] ++ (extraSteps.build or [ ]);
@@ -373,13 +381,16 @@ rec {
 
   # Create the Buildkite configuration for an extra step, optionally
   # wrapping it in a gate group.
-  mkExtraStep = cfg:
+  mkExtraStep = buildEnabled: cfg:
     let
       step = {
         label = ":gear: ${cfg.label} (from ${cfg.parentLabel})";
         skip = if cfg.alwaysRun then false else cfg.parent.skip or false;
-        # TODO(tazjin): Remember to gate this behaviour with active phases.
-        depends_on = lib.optional (!cfg.alwaysRun && !cfg.needsOutput) cfg.parent.key;
+
+        depends_on = lib.optional
+          (buildEnabled && !cfg.alwaysRun && !cfg.needsOutput)
+          cfg.parent.key;
+
         branches =
           if cfg.branches != null
           then lib.concatStringsSep " " cfg.branches else null;

@@ -203,7 +203,7 @@ rec {
         ++ postBuildSteps;
 
       buildChunks = pipelineChunks "build" buildSteps;
-      postBuildChunks = pipelineChunks "post" postSteps;
+      postBuildChunks = pipelineChunks "release" postSteps;
       chunks = buildChunks ++ postBuildChunks;
     in
     runCommandNoCC "buildkite-pipeline" { } ''

@@ -294,12 +294,10 @@ rec {
     , parentOverride ? (x: x)
     , branches ? null
     , alwaysRun ? false
+    , prompt ? false
 
       # TODO(tazjin): Default to 'build' after 2022-10-01.
     , phase ? if (isNull postBuild || !postBuild) then "build" else "release"
-
-      # TODO(tazjin): Forbid prompt steps in 'build' phase.
-    , prompt ? false
 
       # TODO(tazjin): Turn into hard-failure after 2022-10-01.
     , postBuild ? null
@@ -317,8 +315,7 @@ rec {
         label
         needsOutput
         parent
-        parentLabel
-        prompt;
+        parentLabel;
 
       # //nix/buildkite is growing a new feature for adding different
       # "build phases" which supersedes the previous `postBuild`
@@ -343,6 +340,15 @@ rec {
         this step and instead set `phase = ${phase};`.
       ''
         phase;
+
+      prompt = lib.throwIf (prompt != false && phase == "build") ''
+        In step '${label}' (from ${parentLabel}):
+
+        The 'prompt' feature can only be used by steps in the "release"
+        phase, because CI builds should not be gated on manual human
+        approvals.
+      ''
+        prompt;
     };
 
   # Create the Buildkite configuration for an extra step, optionally

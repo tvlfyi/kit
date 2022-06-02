@@ -111,7 +111,7 @@ rec {
     });
   };
 
-  # Split the pipeline into chunks of at most 256 steps at once, which
+  # Split the pipeline into chunks of at most 192 steps at once, which
   # are uploaded sequentially. This is because of a limitation in the
   # Buildkite backend which struggles to process more than a specific
   # number of chunks at once.

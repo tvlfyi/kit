@@ -13,6 +13,7 @@ let
     attrValues
     concatLists
     concatStringsSep
+    elem
     foldl'
     hasAttr
     hashString
@@ -165,7 +166,7 @@ rec {
 
           # Split extra steps by phase.
           splitExtraSteps = lib.groupBy ({ phase, ... }: phase)
-            (attrValues (mapAttrs (normaliseExtraStep overridable)
+            (attrValues (mapAttrs (normaliseExtraStep phases overridable)
               (target.meta.ci.extraSteps or { })));
 
           extraSteps = mapAttrs (_: steps: map mkExtraStep steps) splitExtraSteps;
@@ -287,7 +288,7 @@ rec {
   # Validate and normalise extra step configuration before actually
   # generating build steps, in order to use user-provided metadata
   # during the pipeline generation.
-  normaliseExtraStep = overridableParent: key:
+  normaliseExtraStep = knownPhases: overridableParent: key:
     { command
     , label ? key
     , needsOutput ? false
@@ -305,6 +306,15 @@ rec {
     let
       parent = overridableParent parentOverride;
       parentLabel = parent.env.READTREE_TARGET;
+
+      validPhase = lib.throwIfNot (elem phase knownPhases) ''
+        In step '${label}' (from ${parentLabel}):
+
+        Phase '${phase}' is not valid.
+
+        Known phases: ${concatStringsSep ", " knownPhases}
+      ''
+        phase;
     in
     {
       inherit
@@ -322,8 +332,6 @@ rec {
       # boolean API.
       #
       # To help users transition, emit warnings if the old API is used.
-      #
-      # TODO(tazjin): Validate available phases.
       phase = lib.warnIfNot (isNull postBuild) ''
         In step '${label}' (from ${parentLabel}):
 
@@ -339,7 +347,7 @@ rec {
         step definitions. Please remove the `postBuild` parameter from
         this step and instead set `phase = ${phase};`.
       ''
-        phase;
+        validPhase;
 
       prompt = lib.throwIf (prompt != false && phase == "build") ''
         In step '${label}' (from ${parentLabel}):

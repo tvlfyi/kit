@@ -25,6 +25,7 @@ pkgs.lib.fix (self: {
     depot.nix.readTree = self.readTree;
   };
 
+  checks = import ./checks { inherit pkgs; };
   lazy-deps = import ./lazy-deps { inherit pkgs; };
   magrathea = import ./magrathea { inherit pkgs; };
   readTree = import ./readTree { };

@@ -13,6 +13,7 @@ tooling, currently comprising of:
   corresponding to the physical layout of a repository.
 * `besadii`: Configurable Gerrit/Buildkite integration hook.
 * `magrathea`: Command-line tool for working with TVL-style monorepos
+* `checks`: Collection of useful CI checks for Buildkite
 
 It can be accessed via git by cloning it as such:
 

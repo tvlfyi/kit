@@ -14,7 +14,7 @@ in
     {
       # Environment name to use (inconsequential, only for drv name)
       name ? "main"
-    , # Terraform package to use. Should be pre-onfigured with the
+    , # Terraform package to use. Should be pre-configured with the
       # correct providers.
       terraform ? pkgs.terraform
     , # Source path for Terraform configuration. Be careful about

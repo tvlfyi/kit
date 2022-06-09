@@ -459,7 +459,7 @@ func gerritHookMain(cfg *config, log *syslog.Writer, trigger *buildTrigger) {
 		log.Err(fmt.Sprintf("failed to trigger Buildkite build: %s", err))
 	}
 
-	if cfg.SourcegraphUrl != "" && trigger.ref == "refs/heads/canon" {
+	if cfg.SourcegraphUrl != "" && trigger.ref == cfg.Branch {
 		err = triggerIndexUpdate(cfg, log)
 		if err != nil {
 			log.Err(fmt.Sprintf("failed to trigger sourcegraph index update: %s", err))

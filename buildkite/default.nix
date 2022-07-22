@@ -323,6 +323,7 @@ rec {
 
       # TODO(tazjin): Turn into hard-failure after 2022-10-01.
     , postBuild ? null
+    , skip ? false
     }:
     let
       parent = overridableParent parentOverride;
@@ -346,7 +347,8 @@ rec {
         label
         needsOutput
         parent
-        parentLabel;
+        parentLabel
+        skip;
 
       # //nix/buildkite is growing a new feature for adding different
       # "build phases" which supersedes the previous `postBuild`
@@ -386,7 +388,7 @@ rec {
     let
       step = {
         label = ":gear: ${cfg.label} (from ${cfg.parentLabel})";
-        skip = if cfg.alwaysRun then false else cfg.parent.skip or false;
+        skip = if cfg.alwaysRun then false else cfg.skip or cfg.parent.skip or false;
 
         depends_on = lib.optional
           (buildEnabled && !cfg.alwaysRun && !cfg.needsOutput)

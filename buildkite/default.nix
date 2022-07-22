@@ -324,6 +324,7 @@ rec {
       # TODO(tazjin): Turn into hard-failure after 2022-10-01.
     , postBuild ? null
     , skip ? false
+    , agents ? null
     }:
     let
       parent = overridableParent parentOverride;
@@ -348,7 +349,8 @@ rec {
         needsOutput
         parent
         parentLabel
-        skip;
+        skip
+        agents;
 
       # //nix/buildkite is growing a new feature for adding different
       # "build phases" which supersedes the previous `postBuild`
@@ -407,7 +409,7 @@ rec {
           echo '+++ Running extra step command'
           exec ${cfg.command}
         '';
-      };
+      } // (lib.optionalAttrs (cfg.agents != null) { inherit (cfg) agents; });
     in
     if (isString cfg.prompt)
     then

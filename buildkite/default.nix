@@ -396,10 +396,6 @@ rec {
           (buildEnabled && !cfg.alwaysRun && !cfg.needsOutput)
           cfg.parent.key;
 
-        branches =
-          if cfg.branches != null
-          then lib.concatStringsSep " " cfg.branches else null;
-
         command = pkgs.writeShellScript "${cfg.key}-script" ''
           set -ueo pipefail
           ${lib.optionalString cfg.needsOutput
@@ -409,7 +405,10 @@ rec {
           echo '+++ Running extra step command'
           exec ${cfg.command}
         '';
-      } // (lib.optionalAttrs (cfg.agents != null) { inherit (cfg) agents; });
+      } // (lib.optionalAttrs (cfg.agents != null) { inherit (cfg) agents; })
+      // (lib.optionalAttrs (cfg.branches != null) {
+        branches = lib.concatStringsSep " " cfg.branches;
+      });
     in
     if (isString cfg.prompt)
     then

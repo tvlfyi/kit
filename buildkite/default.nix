@@ -66,7 +66,7 @@ rec {
   ];
 
   # Create a pipeline step from a single target.
-  mkStep = headBranch: parentTargetMap: target:
+  mkStep = headBranch: parentTargetMap: target: cancelOnBuildFailing:
     let
       label = mkLabel target;
       drvPath = unsafeDiscardStringContext target.drvPath;
@@ -78,6 +78,7 @@ rec {
       skip = shouldSkip' label drvPath;
       command = mkBuildCommand target drvPath;
       env.READTREE_TARGET = label;
+      cancel_on_build_failing = cancelOnBuildFailing;
 
       # Add a dependency on the initial static pipeline step which
       # always runs. This allows build steps uploaded in batches to
@@ -151,6 +152,12 @@ rec {
       #
       # TODO(tazjin): Fail/warn if unknown phase is requested.
       activePhases ? [ "build" "release" ]
+      # Setting this attribute to true cancels dynamic pipeline steps
+      # as soon as the build is marked as failing.
+      #
+      # To enable this feature one should enable "Fail Fast" setting
+      # at Buildkite pipeline or on organization level.
+    , cancelOnBuildFailing ? false
     }:
     let
       # Currently the only known phases are 'build' (Nix builds and
@@ -172,14 +179,14 @@ rec {
       # phase (as phases end up in different chunks).
       targetToSteps = target:
         let
-          step = mkStep headBranch parentTargetMap target;
+          step = mkStep headBranch parentTargetMap target cancelOnBuildFailing;
 
           # Same step, but with an override function applied. This is
           # used in mkExtraStep if the extra step needs to modify the
           # parent derivation somehow.
           #
           # Note that this will never affect the label.
-          overridable = f: mkStep headBranch parentTargetMap (f target);
+          overridable = f: mkStep headBranch parentTargetMap (f target) cancelOnBuildFailing;
 
           # Split extra steps by phase.
           splitExtraSteps = lib.groupBy ({ phase, ... }: phase)

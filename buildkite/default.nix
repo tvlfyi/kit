@@ -25,7 +25,7 @@ let
     toJSON
     unsafeDiscardStringContext;
 
-  inherit (pkgs) lib runCommandNoCC writeText;
+  inherit (pkgs) lib runCommand writeText;
   inherit (depot.nix.readTree) mkLabel;
 in
 rec {
@@ -225,7 +225,7 @@ rec {
         phases;
 
     in
-    runCommandNoCC "buildkite-pipeline" { } ''
+    runCommand "buildkite-pipeline" { } ''
       mkdir $out
       echo "Generated ${toString (length chunks)} pipeline chunks"
       ${

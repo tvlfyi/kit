@@ -397,7 +397,18 @@ rec {
     let
       step = {
         label = ":gear: ${cfg.label} (from ${cfg.parentLabel})";
-        skip = if cfg.alwaysRun then false else cfg.skip or cfg.parent.skip or false;
+        skip =
+          let
+            # When parent doesn't have skip attribute set, default to false
+            parentSkip = cfg.parent.skip or false;
+            # Extra step skip parameter can be string explaining the
+            # skip reason.
+            extraStepSkip = if builtins.isString cfg.skip then true else cfg.skip;
+            # Don't run if extra step is explicitly set to skip. If
+            # parameter is not set or equal to false, follow parent behavior.
+            skip' = if extraStepSkip then cfg.skip else parentSkip;
+          in
+          if cfg.alwaysRun then false else skip';
 
         depends_on = lib.optional
           (buildEnabled && !cfg.alwaysRun && !cfg.needsOutput)

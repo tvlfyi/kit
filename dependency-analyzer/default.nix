@@ -23,19 +23,33 @@ let
     in
     appendContext drvPath' { ${drvPath'} = { path = true; }; };
 
-  # Find all quoted references to a derivation path in the specified drv file.
-  # Should correspond to the list of input derivations, but is obviously a big
-  # HACK as we just grep for store paths that look right. This should eventually
-  # be solved properly by parsing the drv file.
+  # Determine all paths a derivation depends on, i.e. input derivations and
+  # files imported into the Nix store.
+  #
+  # Implementation for Nix < 2.6 is quite hacky at the moment.
   #
   # Type: str -> [str]
-  directDrvDeps = drvPath: builtins.concatLists (
-    builtins.filter builtins.isList (
-      builtins.split
-        "\"(${lib.escapeRegex builtins.storeDir}/[[:alnum:]+._?=-]+.drv)\""
-        (builtins.readFile drvPath)
-    )
-  );
+  #
+  # TODO(sterni): clean this up and expose it
+  directDrvDeps =
+    if lib.versionAtLeast builtins.nixVersion "2.6"
+    then
+    # Since https://github.com/NixOS/nix/pull/1643, Nix apparently »preserves
+    # string context« through a readFile invocation. This has the side effect
+    # that it becomes possible to query the actual references a store path has.
+    # Not a 100% sure this is intended, but _very_ convenient for us here.
+      drvPath: builtins.attrNames (builtins.getContext (builtins.readFile drvPath))
+    else
+    # For Nix < 2.6 we have to rely on HACK, namely grepping for quoted store
+    # path references in the file. In the future this should be replaced by
+    # a proper derivation parser.
+      drvPath: builtins.concatLists (
+        builtins.filter builtins.isList (
+          builtins.split
+            "\"(${lib.escapeRegex builtins.storeDir}/[[:alnum:]+._?=-]+.drv)\""
+            (builtins.readFile drvPath)
+        )
+      );
 
   # Maps a list of derivation to the list of corresponding `drvPath`s.
   #

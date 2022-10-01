@@ -17,7 +17,7 @@ rec {
     (f afterAction.value) afterAction.state;
 
   # Type: stateMonad s a -> stateMonad s b -> stateMonad s b
-  after = action1: action2: bind action1 (_: action2);
+  after = action1: action2: state: action2 (action1 state).state;
 
   # Type: stateMonad s (stateMonad s a) -> stateMonad s a
   join = action: bind action (action': action');

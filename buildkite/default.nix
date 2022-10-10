@@ -197,7 +197,7 @@ rec {
 
           # Split extra steps by phase.
           splitExtraSteps = lib.groupBy ({ phase, ... }: phase)
-            (attrValues (mapAttrs (normaliseExtraStep enabledPhases overridable)
+            (attrValues (mapAttrs (normaliseExtraStep phases overridable)
               (target.meta.ci.extraSteps or { })));
 
           extraSteps = mapAttrs

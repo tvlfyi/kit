@@ -143,7 +143,21 @@ rec {
       #
       # Can be used for status reporting steps and the like.
       postBuildSteps ? [ ]
-    , # Build phases that are active for this invocation (i.e. their
+      # The list of phases known by the current Buildkite
+      # pipeline. Dynamic pipeline chunks for each phase are uploaded
+      # to Buildkite on execution of static part of the
+      # pipeline. Phases selection is hard-coded in the static
+      # pipeline.
+      #
+      # Pipeline generation will fail when an extra step with
+      # unregistered phase is added.
+      #
+      # Common scenarios for different phase:
+      #   - "build" - main phase for building all Nix targets
+      #   - "release" - pushing artifacts to external repositories
+      #   - "deploy" - updating external deployment configurations
+    , phases ? [ "build" "release" ]
+      # Build phases that are active for this invocation (i.e. their
       # steps should be generated).
       #
       # This can be used to disable outputting parts of a pipeline if,
@@ -151,7 +165,7 @@ rec {
       # eval contexts.
       #
       # TODO(tazjin): Fail/warn if unknown phase is requested.
-      activePhases ? [ "build" "release" ]
+    , activePhases ? phases
       # Setting this attribute to true cancels dynamic pipeline steps
       # as soon as the build is marked as failing.
       #
@@ -160,20 +174,13 @@ rec {
     , cancelOnBuildFailing ? false
     }:
     let
-      # Currently the only known phases are 'build' (Nix builds and
-      # extra steps that are not post-build steps) and 'release' (all
-      # post-build steps).
-      #
-      # TODO(tazjin): Fully configurable set of phases?
-      knownPhases = [ "build" "release" ];
-
       # List of phases to include.
-      phases = lib.intersectLists activePhases knownPhases;
+      enabledPhases = lib.intersectLists activePhases phases;
 
       # Is the 'build' phase included? This phase is treated specially
       # because it always contains the plain Nix builds, and some
       # logic/optimisation depends on knowing whether is executing.
-      buildEnabled = elem "build" phases;
+      buildEnabled = elem "build" enabledPhases;
 
       # Convert a target into all of its steps, separated by build
       # phase (as phases end up in different chunks).
@@ -190,7 +197,7 @@ rec {
 
           # Split extra steps by phase.
           splitExtraSteps = lib.groupBy ({ phase, ... }: phase)
-            (attrValues (mapAttrs (normaliseExtraStep knownPhases overridable)
+            (attrValues (mapAttrs (normaliseExtraStep enabledPhases overridable)
               (target.meta.ci.extraSteps or { })));
 
           extraSteps = mapAttrs
@@ -211,7 +218,7 @@ rec {
         release = postBuildSteps;
       };
 
-      phasesWithSteps = lib.zipAttrsWithNames phases (_: concatLists)
+      phasesWithSteps = lib.zipAttrsWithNames enabledPhases (_: concatLists)
         ((map targetToSteps drvTargets) ++ [ globalSteps ]);
 
       # Generate pipeline chunks for each phase.
@@ -222,7 +229,7 @@ rec {
           then acc
           else acc ++ (pipelineChunks phase phaseSteps))
         [ ]
-        phases;
+        enabledPhases;
 
     in
     runCommand "buildkite-pipeline" { } ''
@@ -316,7 +323,7 @@ rec {
   # Validate and normalise extra step configuration before actually
   # generating build steps, in order to use user-provided metadata
   # during the pipeline generation.
-  normaliseExtraStep = knownPhases: overridableParent: key:
+  normaliseExtraStep = phases: overridableParent: key:
     { command
     , label ? key
     , needsOutput ? false
@@ -337,12 +344,12 @@ rec {
       parent = overridableParent parentOverride;
       parentLabel = parent.env.READTREE_TARGET;
 
-      validPhase = lib.throwIfNot (elem phase knownPhases) ''
+      validPhase = lib.throwIfNot (elem phase phases) ''
         In step '${label}' (from ${parentLabel}):
 
         Phase '${phase}' is not valid.
 
-        Known phases: ${concatStringsSep ", " knownPhases}
+        Known phases: ${concatStringsSep ", " phases}
       ''
         phase;
     in

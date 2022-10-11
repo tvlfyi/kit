@@ -38,7 +38,13 @@ let
     # string context« through a readFile invocation. This has the side effect
     # that it becomes possible to query the actual references a store path has.
     # Not a 100% sure this is intended, but _very_ convenient for us here.
-      drvPath: builtins.attrNames (builtins.getContext (builtins.readFile drvPath))
+      drvPath:
+      # if the passed path is not a derivation we can't necessarily get its
+      # dependencies, since it may not be representable as a Nix string due to
+      # NUL bytes, e.g. compressed patch files imported into the Nix store.
+      if builtins.match "^.+\\.drv$" drvPath == null
+      then [ ]
+      else builtins.attrNames (builtins.getContext (builtins.readFile drvPath))
     else
     # For Nix < 2.6 we have to rely on HACK, namely grepping for quoted store
     # path references in the file. In the future this should be replaced by

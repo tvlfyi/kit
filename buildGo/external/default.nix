@@ -13,6 +13,7 @@ let
     readFile
     replaceStrings
     tail
+    unsafeDiscardStringContext
     throw;
 
   inherit (pkgs) lib runCommand go jq ripgrep;
@@ -102,7 +103,9 @@ let
   analysisOutput = runCommand "${name}-structure.json" { } ''
     ${analyser}/bin/analyser -path ${path} -source ${src} > $out
   '';
-  analysis = fromJSON (readFile analysisOutput);
+  # readFile adds the references of the read in file to the string context for
+  # Nix >= 2.6 which would break the attribute set construction in fromJSON
+  analysis = fromJSON (unsafeDiscardStringContext (readFile analysisOutput));
 in
 lib.fix (self: foldl' lib.recursiveUpdate { } (
   map (entry: mkset entry.locator (toPackage self src path depMap entry)) analysis

@@ -308,8 +308,8 @@ rec {
 
     steps = [
       {
-        inherit (step) branches;
         inherit prompt;
+        branches = step.branches or [ ];
         block = ":radio_button: Run ${label}? (from ${parent.env.READTREE_TARGET})";
       }
 

@@ -7,22 +7,6 @@ let
   # Utilities
   #
 
-  # Manipulate string context of the given string so that it only carries a
-  # `path` reference to itself (so it needs to be a string representation of
-  # a store path).
-  #
-  # This is intended for use on the `drvPath` attribute of derivations which by
-  # default carries a reference to the corresponding outputs. If we only want to
-  # read from the `drvPath`, having only a `path` reference makes sure we don't
-  # need to realise the derivation first.
-  #
-  # Type: str -> str
-  pathContextDrvPath = drvPath:
-    let
-      drvPath' = unsafeDiscardStringContext drvPath;
-    in
-    appendContext drvPath' { ${drvPath'} = { path = true; }; };
-
   # Determine all paths a derivation depends on, i.e. input derivations and
   # files imported into the Nix store.
   #
@@ -61,7 +45,7 @@ let
   #
   # Type: [drv] -> [str]
   drvsToPaths = drvs:
-    builtins.map (drv: pathContextDrvPath drv.drvPath) drvs;
+    builtins.map (drv: builtins.unsafeDiscardOutputDependency drv.drvPath) drvs;
 
   #
   # Calculate map of direct derivation dependencies
@@ -78,7 +62,7 @@ let
       # key may not refer to a store path, …
       key = unsafeDiscardStringContext drvPath;
       # but we must read from the .drv file.
-      path = pathContextDrvPath drvPath;
+      path = builtins.unsafeDiscardOutputDependency drvPath;
     in
     {
       inherit key;

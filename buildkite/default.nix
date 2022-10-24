@@ -331,6 +331,7 @@ rec {
     , branches ? null
     , alwaysRun ? false
     , prompt ? false
+    , softFail ? false
 
       # TODO(tazjin): Default to 'build' after 2022-10-01.
     , phase ? if (isNull postBuild || !postBuild) then "build" else "release"
@@ -363,6 +364,7 @@ rec {
         needsOutput
         parent
         parentLabel
+        softFail
         skip
         agents;
 
@@ -430,6 +432,8 @@ rec {
           echo '+++ Running extra step command'
           exec ${cfg.command}
         '';
+
+        soft_fail = cfg.softFail;
       } // (lib.optionalAttrs (cfg.agents != null) { inherit (cfg) agents; })
       // (lib.optionalAttrs (cfg.branches != null) {
         branches = lib.concatStringsSep " " cfg.branches;

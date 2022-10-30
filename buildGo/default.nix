@@ -22,7 +22,10 @@ let
     replaceStrings
     toString;
 
-  inherit (pkgs) lib go runCommand fetchFromGitHub protobuf symlinkJoin;
+  inherit (pkgs) lib runCommand fetchFromGitHub protobuf symlinkJoin;
+
+  # TODO: Adapt to Go 1.19 changes
+  go = pkgs.go_1_18;
 
   # Helpers for low-level Go compiler invocations
   spaceOut = lib.concatStringsSep " ";

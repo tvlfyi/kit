@@ -296,19 +296,19 @@ if you meant to pass these arguments to nix, please separate them with
 (define (execute-run t #!optional cmd-args)
   (fprintf (current-error-port) "[mg] building target ~A~%" t)
   (let* ((expr (nix-expr-for t))
-         (out (call-with-input-pipe
-               (apply string-append
-                      ;; TODO(sterni): temporary gc root
-                      (intersperse `("nix-build" "-E" ,(qs expr) "--no-out-link")
-                                   " "))
-               (lambda (p)
-                 (string-chomp (let ((s (read-string #f p)))
-                                 (if (eq? s #!eof) "" s)))))))
-
-    ;; TODO(sterni): can we get the exit code of nix-build somehow?
-    (when (= (string-length out) 0)
-      (mg-error (string-append "Couldn't build target " (format "~A" t)))
-      (exit 1))
+         (out
+          (receive (pipe _ pid)
+              ;; TODO(sterni): temporary gc root
+              (process "nix-build" (list "-E" expr "--no-out-link"))
+            (let ((stdout (string-chomp
+                           (let ((s (read-string #f pipe)))
+                             (if (eq? s #!eof) "" s)))))
+              (receive (_ _ status)
+                  (process-wait pid)
+                (when (not (eq? status 0))
+                  (mg-error (format "Couldn't build target ~A" t))
+                  (exit status))
+                stdout)))))
 
     (fprintf (current-error-port) "[mg] running target ~A~%" t)
     (process-execute

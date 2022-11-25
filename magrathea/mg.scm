@@ -21,6 +21,7 @@
 
 (define usage #<<USAGE
 usage: mg <command> [<target>]
+       mg run [<target>] [-- <arguments>]
 
 target:
   a target specification with meaning inside of the repository. can
@@ -333,9 +334,10 @@ if you meant to pass these arguments to nix, please separate them with
 (define (run args)
   (match args
          [() (execute-run (empty-target))]
+         [("--" . rest) (execute-run (empty-target) rest)]
+         [(target . ("--" . rest)) (execute-run (guarantee-success (parse-target target)) rest)]
          ;; TODO(sterni): flag for selecting binary name
-         [other (execute-run (guarantee-success (parse-target (car args)))
-                             (cdr args))]))
+         [_ (mg-error "usage: mg run [<target>] [-- <arguments>] (hint: use \"--\" to separate the `mg run [<target>]` invocation from the arguments you're passing to the built executable)")]))
 
 (define (path args)
   (match args

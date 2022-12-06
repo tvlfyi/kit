@@ -2,8 +2,7 @@ buildGo.nix
 ===========
 
 This is an alternative [Nix][] build system for [Go][]. It supports building Go
-libraries and programs, and even automatically generating Protobuf & gRPC
-libraries.
+libraries and programs.
 
 *Note:* This will probably end up being folded into [Nixery][].
 
@@ -33,7 +32,6 @@ Given a program layout like this:
 ├── lib          <-- some library component
 │   ├── bar.go
 │   └── foo.go
-├── api.proto    <-- gRPC API definition
 ├── main.go      <-- program implementation
 └── default.nix  <-- build instructions
 ```
@@ -44,11 +42,6 @@ The contents of `default.nix` could look like this:
 { buildGo }:
 
 let
-  api = buildGo.grpc {
-    name  = "someapi";
-    proto = ./api.proto;
-  };
-
   lib = buildGo.package {
     name = "somelib";
     srcs = [
@@ -58,7 +51,7 @@ let
   };
 in buildGo.program {
   name = "my-program";
-  deps = [ api lib ];
+  deps = [ lib ];
 
   srcs = [
     ./main.go
@@ -104,22 +97,6 @@ in buildGo.program {
   | `path`    | `string`       | Go import path for the resulting package      | yes       |
   | `src`     | `path`         | Path to the source **directory**              | yes       |
   | `deps`    | `list<drv>`    | List of dependencies (i.e. other Go packages) | no        |
-
-  For some examples of how `buildGo.external` is used, check out
-  [`proto.nix`](./proto.nix).
-
-* `buildGo.proto`: Build a Go library out of the specified Protobuf definition.
-
-  | parameter   | type        | use                                              | required? |
-  |-------------|-------------|--------------------------------------------------|-----------|
-  | `name`      | `string`    | Name for the resulting library                   | yes       |
-  | `proto`     | `path`      | Path to the Protobuf definition file             | yes       |
-  | `path`      | `string`    | Import path for the resulting Go library         | no        |
-  | `extraDeps` | `list<drv>` | Additional Go dependencies to add to the library | no        |
-
-* `buildGo.grpc`: Build a Go library out of the specified gRPC definition.
-
-  The parameters are identical to `buildGo.proto`.
 
 ## Current status
 

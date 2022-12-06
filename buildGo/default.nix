@@ -111,33 +111,11 @@ let
   # named "gopkg", and an attribute named "gobin" for binaries.
   external = import ./external { inherit pkgs program package; };
 
-  # Import support libraries needed for protobuf & gRPC support
-  protoLibs = import ./proto.nix {
-    inherit external;
-  };
-
-  # Build a Go library out of the specified protobuf definition.
-  proto = { name, proto, path ? name, goPackage ? name, extraDeps ? [ ] }: (makeOverridable package) {
-    inherit name path;
-    deps = [ protoLibs.goProto.proto.gopkg ] ++ extraDeps;
-    srcs = lib.singleton (runCommand "goproto-${name}.pb.go" { } ''
-      cp ${proto} ${baseNameOf proto}
-      ${protobuf}/bin/protoc --plugin=${protoLibs.goProto.protoc-gen-go.gopkg}/bin/protoc-gen-go \
-        --go_out=plugins=grpc,import_path=${baseNameOf path}:. ${baseNameOf proto}
-      mv ./${goPackage}/*.pb.go $out
-    '');
-  };
-
-  # Build a Go library out of the specified gRPC definition.
-  grpc = args: proto (args // { extraDeps = [ protoLibs.goGrpc.gopkg ]; });
-
 in
 {
   # Only the high-level builder functions are exposed, but made
   # overrideable.
   program = makeOverridable program;
   package = makeOverridable package;
-  proto = makeOverridable proto;
-  grpc = makeOverridable grpc;
   external = makeOverridable external;
 }

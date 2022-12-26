@@ -19,13 +19,6 @@ let
     ];
   };
 
-  # Example use of buildGo.proto, which generates a Go library from a
-  # Protobuf definition file.
-  exampleProto = buildGo.proto {
-    name = "exampleproto";
-    proto = ./thing.proto;
-  };
-
   # Example use of buildGo.program, which builds an executable using
   # the specified name and dependencies (which in turn must have been
   # created via buildGo.package etc.)
@@ -39,7 +32,6 @@ buildGo.program {
 
   deps = [
     examplePackage
-    exampleProto
   ];
 
   x_defs = {

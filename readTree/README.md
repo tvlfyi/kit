@@ -52,14 +52,17 @@ true;` attribute merged into it.
 `readTree` will follow any subdirectories of a tree and import all Nix files,
 with some exceptions:
 
+* If a folder contains a `default.nix` file, no *sibling* Nix files will be
+  imported - however children are traversed as normal.
+* If a folder contains a `default.nix` it is loaded and, if it
+  evaluates to a set, *merged* with the children. If it evaluates to
+  anything other than a set, else the children are *not traversed*.
+* A folder can opt out from readTree completely by containing a
+  `.skip-tree` file. The content of the file is not read. These
+  folders will be missing completely from the readTree structure.
 * A folder can declare that its children are off-limit by containing a
   `.skip-subtree` file. Since the content of the file is not checked, it can be
   useful to leave a note for a human in the file.
-* If a folder contains a `default.nix` file, no *sibling* Nix files will be
-  imported - however children are traversed as normal.
-* If a folder contains a `default.nix` it is loaded and, if it evaluates to a
-  set, *merged* with the children. If it evaluates to anything else the children
-  are *not traversed*.
 * The `default.nix` of the top-level folder on which readTree is
   called is **not** read to avoid infinite recursion (as, presumably,
   this file is where readTree itself is called).

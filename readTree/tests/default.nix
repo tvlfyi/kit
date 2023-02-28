@@ -41,6 +41,16 @@ let
   };
 
   traversal-logic = it "corresponds to the traversal logic in the README" [
+    (assertEq "skip-tree/a is read"
+      tree-tl.skip-tree.a
+      "a is read normally")
+    (assertEq "skip-tree does not contain b"
+      (builtins.attrNames tree-tl.skip-tree)
+      [ "__readTree" "__readTreeChildren" "a" ])
+    (assertEq "skip-tree children list does not contain b"
+      tree-tl.skip-tree.__readTreeChildren
+      [ "a" ])
+
     (assertEq "skip subtree default.nix is read"
       tree-tl.skip-subtree.but
       "the default.nix is still read")

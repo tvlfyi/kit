@@ -41,7 +41,8 @@ let
   readDirVisible = path:
     let
       children = readDir path;
-      isVisible = f: f == ".skip-subtree" || (substring 0 1 f) != ".";
+      # skip hidden files, except for those that contain special instructions to readTree
+      isVisible = f: f == ".skip-subtree" || f == ".skip-tree" || (substring 0 1 f) != ".";
       names = filter isVisible (attrNames children);
     in
     listToAttrs (map
@@ -86,16 +87,39 @@ let
       pathType = builtins.typeOf importedFile;
     in
     if pathType != "lambda"
-    then builtins.throw "readTree: trying to import ${toString path}, but it’s a ${pathType}, you need to make it a function like { depot, pkgs, ... }"
+    then throw "readTree: trying to import ${toString path}, but it’s a ${pathType}, you need to make it a function like { depot, pkgs, ... }"
     else importedFile (filter parts (argsWithPath args parts));
 
   nixFileName = file:
     let res = match "(.*)\\.nix" file;
     in if res == null then null else head res;
 
-  readTree = { args, initPath, rootDir, parts, argsFilter, scopedArgs }:
+  # Internal implementation of readTree, which handles things like the
+  # skipping of trees and subtrees.
+  #
+  # This method returns an attribute sets with either of two shapes:
+  #
+  # { ok = ...; }    # a tree was read successfully
+  # { skip = true; } # a tree was skipped
+  #
+  # The higher-level `readTree` method assembles the final attribute
+  # set out of these results at the top-level, and the internal
+  # `children` implementation unwraps and processes nested trees.
+  readTreeImpl = { args, initPath, rootDir, parts, argsFilter, scopedArgs }:
     let
       dir = readDirVisible initPath;
+
+      # Determine whether any part of this tree should be skipped.
+      #
+      # Adding a `.skip-subtree` file will still allow the import of
+      # the current node's "default.nix" file, but stop recursion
+      # there.
+      #
+      # Adding a `.skip-tree` file will completely ignore the folder
+      # in which this file is located.
+      skipTree = hasAttr ".skip-tree" dir;
+      skipSubtree = skipTree || hasAttr ".skip-subtree" dir;
+
       joinChild = c: initPath + ("/" + c);
 
       self =
@@ -103,19 +127,17 @@ let
         then { __readTree = [ ]; }
         else importFile args scopedArgs initPath parts argsFilter;
 
-      # Import subdirectories of the current one, unless the special
-      # `.skip-subtree` file exists which makes readTree ignore the
-      # children.
+      # Import subdirectories of the current one, unless any skip
+      # instructions exist.
       #
       # This file can optionally contain information on why the tree
       # should be ignored, but its content is not inspected by
       # readTree
       filterDir = f: dir."${f}" == "directory";
-      children = if hasAttr ".skip-subtree" dir then [ ] else
-      map
+      filteredChildren = map
         (c: {
           name = c;
-          value = readTree {
+          value = readTreeImpl {
             inherit argsFilter scopedArgs;
             args = args;
             initPath = (joinChild c);
@@ -125,9 +147,15 @@ let
         })
         (filter filterDir (attrNames dir));
 
+      # Remove skipped children from the final set, and unwrap the
+      # result set.
+      children =
+        if skipSubtree then [ ]
+        else map ({ name, value }: { inherit name; value = value.ok; }) (filter (child: child.value ? ok) filteredChildren);
+
       # Import Nix files
       nixFiles =
-        if hasAttr ".skip-subtree" dir then [ ]
+        if skipSubtree then [ ]
         else filter (f: f != null) (map nixFileName (attrNames dir));
       nixChildren = map
         (c:
@@ -154,9 +182,23 @@ let
       );
 
     in
-    if isAttrs nodeValue
-    then merge nodeValue (allChildren // (marker parts allChildren))
-    else nodeValue;
+    if skipTree
+    then { skip = true; }
+    else {
+      ok =
+        if isAttrs nodeValue
+        then merge nodeValue (allChildren // (marker parts allChildren))
+        else nodeValue;
+    };
+
+  # Top-level implementation of readTree itself.
+  readTree = args:
+    let
+      tree = readTreeImpl args;
+    in
+    if tree ? skip
+    then throw "Top-level folder has a .skip-tree marker and could not be read by readTree!"
+    else tree.ok;
 
   # Helper function to fetch subtargets from a target. This is a
   # temporary helper to warn on the use of the `meta.targets`

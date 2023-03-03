@@ -9,9 +9,10 @@
 { pkgs ? (import ./nixpkgs {
     depotOverlays = false;
     depot.third_party.sources = import ./sources { };
+    externalArgs = args;
   })
 , ...
-}:
+}@args:
 
 pkgs.lib.fix (self: {
   besadii = import ./besadii {

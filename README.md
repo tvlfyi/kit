@@ -17,7 +17,7 @@ tooling, currently comprising of:
 
 It can be accessed via git by cloning it as such:
 
-    git clone https://code.tvl.fyi/depot.git:workspace=views/kit.git tvl-kit
+    git clone https://code.tvl.fyi/depot.git:unsign:workspace=views/kit.git tvl-kit
 
 If you are looking at this within the TVL depot, you can see the
 [josh][] configuration in `workspace.josh`. You will find the projects

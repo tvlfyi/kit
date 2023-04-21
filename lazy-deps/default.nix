@@ -9,11 +9,11 @@
 # evaluation, and expects both `git` and `nix-build` to exist in the
 # user's $PATH. If required, this can be done in the shell
 # configuration invoking this function.
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 let
   inherit (builtins) attrNames attrValues mapAttrs;
-  inherit (pkgs.lib) concatStringsSep;
+  inherit (lib) fix concatStringsSep;
 
   # Create the case statement for a command invocations, optionally
   # overriding the `TARGET_TOOL` variable.
@@ -28,62 +28,64 @@ let
 
   invocations = tools: concatStringsSep "\n" (attrValues (mapAttrs invoke tools));
 in
+fix (self:
 
 # Attribute set of tools that should be lazily-added to the $PATH.
-
-  # The name of each attribute is used as the command name (on $PATH).
-  # It must contain the keys 'attr' (containing the Nix attribute path
-  # to the tool's derivation from the top-level), and may optionally
-  # contain the key 'cmd' to override the name of the binary inside the
-  # derivation.
+#
+# The name of each attribute is used as the command name (on $PATH).
+# It must contain the keys 'attr' (containing the Nix attribute path
+# to the tool's derivation from the top-level), and may optionally
+# contain the key 'cmd' to override the name of the binary inside the
+# derivation.
 tools:
 
-let
-  self = pkgs.runCommandNoCC "lazy-dispatch"
-    {
-      text = ''
-        #!${pkgs.runtimeShell}
-        set -ue
+pkgs.runCommandNoCC "lazy-dispatch"
+{
+  passthru.overrideDeps = newTools: self (tools // newTools);
+  passthru.tools = tools;
 
-        if ! type git>/dev/null || ! type nix-build>/dev/null; then
-          echo "The 'git' and 'nix-build' commands must be available." >&2
-          exit 127
-        fi
+  text = ''
+    #!${pkgs.runtimeShell}
+    set -ue
 
-        readonly REPO_ROOT=$(git rev-parse --show-toplevel)
-        TARGET_TOOL=$(basename "$0")
+    if ! type git>/dev/null || ! type nix-build>/dev/null; then
+      echo "The 'git' and 'nix-build' commands must be available." >&2
+      exit 127
+    fi
 
-        case "''${TARGET_TOOL}" in
-        ${invocations tools}
-        *)
-          echo "''${TARGET_TOOL} is currently not installed in this repository." >&2
-          exit 127
-          ;;
-        esac
+    readonly REPO_ROOT=$(git rev-parse --show-toplevel)
+    TARGET_TOOL=$(basename "$0")
 
-        result=$(nix-build --no-out-link --attr "''${attr}" "''${REPO_ROOT}")
-        PATH="''${result}/bin:$PATH"
-        exec "''${TARGET_TOOL}" "''${@}"
-      '';
+    case "''${TARGET_TOOL}" in
+    ${invocations tools}
+    *)
+      echo "''${TARGET_TOOL} is currently not installed in this repository." >&2
+      exit 127
+      ;;
+    esac
 
-      # Access this to get a compatible nix-shell
-      passthru.devShell = pkgs.mkShellNoCC {
-        name = "${self.name}-shell";
-        packages = [ self ];
-      };
-    }
-    ''
-      # Write the dispatch code
-      target=$out/bin/__dispatch
-      mkdir -p "$(dirname "$target")"
-      echo "$text" > $target
-      chmod +x $target
+    result=$(nix-build --no-out-link --attr "''${attr}" "''${REPO_ROOT}")
+    PATH="''${result}/bin:$PATH"
+    exec "''${TARGET_TOOL}" "''${@}"
+  '';
 
-      # Add symlinks from all the tools to the dispatch
-      ${concatStringsSep "\n" (map link (attrNames tools))}
+  # Access this to get a compatible nix-shell
+  passthru.devShell = pkgs.mkShellNoCC {
+    name = "${self.name}-shell";
+    packages = [ self ];
+  };
+}
+  ''
+    # Write the dispatch code
+    target=$out/bin/__dispatch
+    mkdir -p "$(dirname "$target")"
+    echo "$text" > $target
+    chmod +x $target
 
-      # Check that it's working-ish
-      ${pkgs.stdenv.shellDryRun} $target
-    '';
-in
-self
+    # Add symlinks from all the tools to the dispatch
+    ${concatStringsSep "\n" (map link (attrNames tools))}
+
+    # Check that it's working-ish
+    ${pkgs.stdenv.shellDryRun} $target
+  ''
+)

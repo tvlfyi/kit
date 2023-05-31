@@ -386,7 +386,7 @@ rec {
 
         This replaces the previous boolean `postBuild` API in extra
         step definitions. Please remove the `postBuild` parameter from
-        this step and instead set `phase = ${phase};`.
+        this step and instead set `phase = "${phase}";`.
       ''
         validPhase;
 

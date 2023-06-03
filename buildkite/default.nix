@@ -405,6 +405,7 @@ rec {
   mkExtraStep = buildEnabled: cfg:
     let
       step = {
+        key = hashString "sha1" cfg.label;
         label = ":gear: ${cfg.label} (from ${cfg.parentLabel})";
         skip =
           let

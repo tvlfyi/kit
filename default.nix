@@ -27,7 +27,10 @@ pkgs.lib.fix (self: {
   };
 
   checks = import ./checks { inherit pkgs; };
-  lazy-deps = import ./lazy-deps { inherit pkgs; };
+  lazy-deps = import ./lazy-deps {
+    inherit pkgs;
+    lib = pkgs.lib;
+  };
   magrathea = import ./magrathea { inherit pkgs; };
   readTree = import ./readTree { };
 })

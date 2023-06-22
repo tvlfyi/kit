@@ -335,6 +335,7 @@ if you meant to pass these arguments to nix, please separate them with
   (match args
          [() (execute-run (empty-target))]
          [("--" . rest) (execute-run (empty-target) rest)]
+         [(target) (execute-run (guarantee-success (parse-target target)))]
          [(target . ("--" . rest)) (execute-run (guarantee-success (parse-target target)) rest)]
          ;; TODO(sterni): flag for selecting binary name
          [_ (mg-error "usage: mg run [<target>] [-- <arguments>] (hint: use \"--\" to separate the `mg run [<target>]` invocation from the arguments you're passing to the built executable)")]))

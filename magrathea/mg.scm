@@ -174,9 +174,8 @@ USAGE
       (begin
         (set! mg--repository-root
               (or (get-environment-variable "MG_ROOT")
-                  (string-chomp
-                   (call-with-input-pipe "git rev-parse --show-toplevel"
-                                         (lambda (p) (read-string #f p))))))
+                  (call-with-input-pipe "git rev-parse --show-toplevel"
+                                        (lambda (p) (read-chomping p)))))
         mg--repository-root)))
 
 ;; determine the current path relative to the root of the repository
@@ -294,6 +293,10 @@ if you meant to pass these arguments to nix, please separate them with
 (define (repl args)
   (process-execute "nix" (append (list "repl" "--show-trace" (repository-root)) args)))
 
+(define (read-chomping pipe)
+  (let ((s (read-string #f pipe)))
+    (if (eq? s #!eof) "" (string-chomp s))))
+
 (define (execute-run t #!optional cmd-args)
   (fprintf (current-error-port) "[mg] building target ~A~%" t)
   (let* ((expr (nix-expr-for t))
@@ -301,14 +304,11 @@ if you meant to pass these arguments to nix, please separate them with
           (receive (pipe _ pid)
               ;; TODO(sterni): temporary gc root
               (process "nix-build" (list "-E" expr "--no-out-link"))
-            (let ((stdout (string-chomp
-                           (let ((s (read-string #f pipe)))
-                             (if (eq? s #!eof) "" s)))))
+            (let ((stdout (read-chomping pipe)))
               (receive (_ _ status)
                   (process-wait pid)
                 (when (not (eq? status 0))
-                  (mg-error (format "Couldn't build target ~A" t))
-                  (exit status))
+                  (mg-error (format "Couldn't build target ~A" t)))
                 stdout)))))
 
     (fprintf (current-error-port) "[mg] running target ~A~%" t)

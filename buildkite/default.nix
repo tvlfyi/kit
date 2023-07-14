@@ -278,10 +278,6 @@ rec {
   #     confirmation. These steps always run after the main build is
   #     done and have no influence on CI status.
   #
-  #   postBuild (optional): If set to true, this step will run after
-  #     all primary build steps (that is, after status has been reported
-  #     back to CI).
-  #
   #   needsOutput (optional): If set to true, the parent derivation
   #     will be built in the working directory before running the
   #     command. Output will be available as 'result'.
@@ -332,12 +328,7 @@ rec {
     , alwaysRun ? false
     , prompt ? false
     , softFail ? false
-
-      # TODO(tazjin): Default to 'build' after 2022-10-01.
-    , phase ? if (isNull postBuild || !postBuild) then "build" else "release"
-
-      # TODO(tazjin): Turn into hard-failure after 2022-10-01.
-    , postBuild ? null
+    , phase ? "build"
     , skip ? false
     , agents ? null
     }:
@@ -368,27 +359,7 @@ rec {
         skip
         agents;
 
-      # //nix/buildkite is growing a new feature for adding different
-      # "build phases" which supersedes the previous `postBuild`
-      # boolean API.
-      #
-      # To help users transition, emit warnings if the old API is used.
-      phase = lib.warnIfNot (isNull postBuild) ''
-        In step '${label}' (from ${parentLabel}):
-
-        Please note: The CI system is introducing support for running
-        steps in different build phases.
-
-        The currently supported phases are 'build' (all Nix targets,
-        extra steps such as tests that feed into the build results,
-        etc.) and 'release' (steps that run after builds and tests
-        have already completed).
-
-        This replaces the previous boolean `postBuild` API in extra
-        step definitions. Please remove the `postBuild` parameter from
-        this step and instead set `phase = "${phase}";`.
-      ''
-        validPhase;
+      phase = validPhase;
 
       prompt = lib.throwIf (prompt != false && phase == "build") ''
         In step '${label}' (from ${parentLabel}):

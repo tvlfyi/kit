@@ -84,6 +84,8 @@ rec {
       # always runs. This allows build steps uploaded in batches to
       # start running before all batches have been uploaded.
       depends_on = ":init:";
+    } // lib.optionalAttrs (target ? meta.timeout) {
+      timeout_in_minutes = target.meta.timeout / 60;
     };
 
   # Helper function to inelegantly divide a list into chunks of at

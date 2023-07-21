@@ -83,7 +83,7 @@ rec {
       # Add a dependency on the initial static pipeline step which
       # always runs. This allows build steps uploaded in batches to
       # start running before all batches have been uploaded.
-      depends_on = ":init:";
+      depends_on = [ ":init:" ] ++ lib.optionals (target ? meta.ci.buildkiteExtraDeps) target.meta.ci.buildkiteExtraDeps;
     } // lib.optionalAttrs (target ? meta.timeout) {
       timeout_in_minutes = target.meta.timeout / 60;
     };

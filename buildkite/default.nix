@@ -86,7 +86,9 @@ rec {
       depends_on = [ ":init:" ] ++ lib.optionals (target ? meta.ci.buildkiteExtraDeps) target.meta.ci.buildkiteExtraDeps;
     } // lib.optionalAttrs (target ? meta.timeout) {
       timeout_in_minutes = target.meta.timeout / 60;
-    };
+      # Additional arguments to set on the step.
+      # Keep in mind these *overwrite* existing step args, not extend. Use with caution.
+    } // lib.optionalAttrs (target ? meta.ci.buildkiteExtraStepArgs) target.meta.ci.buildkiteExtraStepArgs;
 
   # Helper function to inelegantly divide a list into chunks of at
   # most n elements.

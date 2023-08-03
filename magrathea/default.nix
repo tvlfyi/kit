@@ -18,6 +18,6 @@ pkgs.stdenv.mkDerivation {
 
   buildPhase = ''
     mkdir -p $out/bin
-    csc -o $out/bin/mg -static ${./mg.scm}
+    csc -o $out/bin/mg -host -static ${./mg.scm}
   '';
 }

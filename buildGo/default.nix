@@ -24,8 +24,8 @@ let
 
   inherit (pkgs) lib runCommand fetchFromGitHub protobuf symlinkJoin;
 
-  # TODO: Adapt to Go 1.19 changes
-  go = pkgs.go_1_18;
+  # TODO: Adapt to Go 1.20 changes
+  go = pkgs.go_1_19;
 
   # Helpers for low-level Go compiler invocations
   spaceOut = lib.concatStringsSep " ";
@@ -59,7 +59,7 @@ let
   program = { name, srcs, deps ? [ ], x_defs ? { } }:
     let uniqueDeps = allDeps (map (d: d.gopkg) deps);
     in runCommand name { } ''
-      ${go}/bin/go tool compile -o ${name}.a -trimpath=$PWD -trimpath=${go} ${includeSources uniqueDeps} ${spaceOut srcs}
+      ${go}/bin/go tool compile -o ${name}.a -trimpath=$PWD -trimpath=${go} -p main ${includeSources uniqueDeps} ${spaceOut srcs}
       mkdir -p $out/bin
       export GOROOT_FINAL=go
       ${go}/bin/go tool link -o $out/bin/${name} -buildid nix ${xFlags x_defs} ${includeLibs uniqueDeps} ${name}.a
@@ -79,8 +79,8 @@ let
       # This is required for several popular packages (e.g. x/sys).
       ifAsm = do: lib.optionalString (sfiles != [ ]) do;
       asmBuild = ifAsm ''
-        ${go}/bin/go tool asm -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -gensymabis -o ./symabis ${spaceOut sfiles}
-        ${go}/bin/go tool asm -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -o ./asm.o ${spaceOut sfiles}
+        ${go}/bin/go tool asm -p ${path} -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -gensymabis -o ./symabis ${spaceOut sfiles}
+        ${go}/bin/go tool asm -p ${path} -trimpath $PWD -I $PWD -I ${go}/share/go/pkg/include -D GOOS_linux -D GOARCH_amd64 -o ./asm.o ${spaceOut sfiles}
       '';
       asmLink = ifAsm "-symabis ./symabis -asmhdr $out/go_asm.h";
       asmPack = ifAsm ''

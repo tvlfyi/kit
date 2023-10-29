@@ -118,4 +118,7 @@ in
   program = makeOverridable program;
   package = makeOverridable package;
   external = makeOverridable external;
+
+  # re-expose the Go version used
+  inherit go;
 }

@@ -2,7 +2,7 @@
 # Copyright (c) 2020-2021 The TVL Authors
 # SPDX-License-Identifier: MIT
 #
-# Provides a function to automatically read a a filesystem structure
+# Provides a function to automatically read a filesystem structure
 # into a Nix attribute set.
 #
 # Called with an attribute set taking the following arguments:

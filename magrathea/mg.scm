@@ -22,6 +22,7 @@
 (define usage #<<USAGE
 usage: mg <command> [<target>]
        mg run [<target>] [-- <arguments>]
+       mg shell [<target>] [<command>]
 
 target:
   a target specification with meaning inside of the repository. can
@@ -276,19 +277,26 @@ if you meant to pass these arguments to nix, please separate them with
 
     (execute-build parsed)))
 
-(define (execute-shell t)
-  (let ((expr (nix-expr-for t))
-        (user-shell (or (get-environment-variable "SHELL") "bash")))
-    (fprintf (current-error-port) "[mg] entering shell for ~A~%" t)
+(define (execute-shell target #!optional command)
+  (if command
+      (fprintf (current-error-port) "[mg] executing ~A in shell for ~A~%"
+               command
+               target)
+      (fprintf (current-error-port) "[mg] entering shell for ~A~%" target))
+  (let ((expr (nix-expr-for target))
+        (command (or command
+                     (get-environment-variable "SHELL")
+                     "bash")))
     (process-execute "nix-shell"
-                     (list "-E" expr "--command" user-shell))))
+                     (list "-E" expr "--command" command))))
 
 (define (shell args)
   (match args
          [() (execute-shell (empty-target))]
-         [(arg) (execute-shell
-                 (guarantee-success (parse-target arg)))]
-         [other (print "not yet implemented")]))
+         [(target . args) (apply
+                           execute-shell
+                           (guarantee-success (parse-target target))
+                           args)]))
 
 (define (repl args)
   (process-execute "nix" (append (list "repl" "--show-trace" (repository-root)) args)))

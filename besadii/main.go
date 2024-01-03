@@ -187,7 +187,7 @@ func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 	url := fmt.Sprintf("%s/a/changes/%s/revisions/%s/review", cfg.GerritUrl, changeId, patchset)
 	req, err := http.NewRequest("POST", url, reader)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create an HTTP request: %w", err)
+		fmt.Fprintf(os.Stderr, "failed to create an HTTP request: %s", err)
 		os.Exit(1)
 	}
 
@@ -196,7 +196,7 @@ func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Errorf("failed to update %s on %s: %w", cfg.GerritChangeName, cfg.GerritUrl, err)
+		fmt.Fprintf(os.Stderr, "failed to update %s on %s: %s", cfg.GerritChangeName, cfg.GerritUrl, err)
 	}
 	defer resp.Body.Close()
 

@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log/syslog"
 	"net/http"
 	"net/mail"
@@ -130,7 +130,7 @@ func loadConfig() (*config, error) {
 		}
 	}
 
-	configJson, err := ioutil.ReadFile(configPath)
+	configJson, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load besadii config: %w", err)
 	}
@@ -182,7 +182,7 @@ func linkToChange(cfg *config, changeId, patchset string) string {
 // updateGerrit posts a comment on a Gerrit CL to indicate the current build status.
 func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 	body, _ := json.Marshal(review)
-	reader := ioutil.NopCloser(bytes.NewReader(body))
+	reader := io.NopCloser(bytes.NewReader(body))
 
 	url := fmt.Sprintf("%s/a/changes/%s/revisions/%s/review", cfg.GerritUrl, changeId, patchset)
 	req, err := http.NewRequest("POST", url, reader)
@@ -201,7 +201,7 @@ func updateGerrit(cfg *config, review reviewInput, changeId, patchset string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := ioutil.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(resp.Body)
 		fmt.Fprintf(os.Stderr, "received non-success response from Gerrit: %s (%v)", respBody, resp.Status)
 	} else {
 		fmt.Printf("Added CI status comment on %s", linkToChange(cfg, changeId, patchset))
@@ -241,7 +241,7 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 	}
 
 	body, _ := json.Marshal(build)
-	reader := ioutil.NopCloser(bytes.NewReader(body))
+	reader := io.NopCloser(bytes.NewReader(body))
 
 	bkUrl := fmt.Sprintf("https://api.buildkite.com/v2/organizations/%s/pipelines/%s/builds", cfg.BuildkiteOrg, cfg.BuildkiteProject)
 	req, err := http.NewRequest("POST", bkUrl, reader)
@@ -259,7 +259,7 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 	}
 	defer resp.Body.Close()
 
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read Buildkite response body: %w", err)
 	}

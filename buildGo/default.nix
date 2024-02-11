@@ -22,10 +22,8 @@ let
     replaceStrings
     toString;
 
-  inherit (pkgs) lib runCommand fetchFromGitHub protobuf symlinkJoin;
-
-  # TODO: Adapt to Go 1.20 changes
-  go = pkgs.go_1_19;
+  inherit (pkgs) lib runCommand fetchFromGitHub protobuf symlinkJoin go;
+  goStdlib = buildStdlib go;
 
   # Helpers for low-level Go compiler invocations
   spaceOut = lib.concatStringsSep " ";
@@ -53,16 +51,52 @@ let
     overrideGo = new: makeOverridable f (orig // (new orig));
   };
 
+  buildStdlib = go: runCommand "go-stdlib-${go.version}"
+    {
+      nativeBuildInputs = [ go ];
+    } ''
+    HOME=$NIX_BUILD_TOP/home
+    mkdir $HOME
+
+    goroot="$(go env GOROOT)"
+    cp -R "$goroot/src" "$goroot/pkg" .
+
+    chmod -R +w .
+    GODEBUG=installgoroot=all GOROOT=$NIX_BUILD_TOP go install -v --trimpath std
+
+    mkdir $out
+    cp -r pkg/*_*/* $out
+
+    find $out -name '*.a' | while read -r ARCHIVE_FULL; do
+      ARCHIVE="''${ARCHIVE_FULL#"$out/"}"
+      PACKAGE="''${ARCHIVE%.a}"
+      echo "packagefile $PACKAGE=$ARCHIVE_FULL"
+    done > $out/importcfg
+  '';
+
+  importcfgCmd = { name, deps, out ? "importcfg" }: ''
+    echo "# nix buildGo ${name}" > "${out}"
+    cat "${goStdlib}/importcfg" >> "${out}"
+    ${lib.concatStringsSep "\n" (map (dep: ''
+      find "${dep}" -name '*.a' | while read -r pkgp; do
+        relpath="''${pkgp#"${dep}/"}"
+        pkgname="''${relpath%.a}"
+        echo "packagefile $pkgname=$pkgp"
+      done >> "${out}"
+    '') deps)}
+  '';
+
   # High-level build functions
 
   # Build a Go program out of the specified files and dependencies.
   program = { name, srcs, deps ? [ ], x_defs ? { } }:
     let uniqueDeps = allDeps (map (d: d.gopkg) deps);
     in runCommand name { } ''
-      ${go}/bin/go tool compile -o ${name}.a -trimpath=$PWD -trimpath=${go} -p main ${includeSources uniqueDeps} ${spaceOut srcs}
+      ${importcfgCmd { inherit name; deps = uniqueDeps; }}
+      ${go}/bin/go tool compile -o ${name}.a -importcfg=importcfg -trimpath=$PWD -trimpath=${go} -p main ${includeSources uniqueDeps} ${spaceOut srcs}
       mkdir -p $out/bin
       export GOROOT_FINAL=go
-      ${go}/bin/go tool link -o $out/bin/${name} -buildid nix ${xFlags x_defs} ${includeLibs uniqueDeps} ${name}.a
+      ${go}/bin/go tool link -o $out/bin/${name} -importcfg=importcfg -buildid nix ${xFlags x_defs} ${includeLibs uniqueDeps} ${name}.a
     '';
 
   # Build a Go library assembled out of the specified files.
@@ -91,7 +125,8 @@ let
         mkdir -p $out/${path}
         ${srcList path (map (s: "${s}") srcs)}
         ${asmBuild}
-        ${go}/bin/go tool compile -pack ${asmLink} -o $out/${path}.a -trimpath=$PWD -trimpath=${go} -p ${path} ${includeSources uniqueDeps} ${spaceOut srcs}
+        ${importcfgCmd { inherit name; deps = uniqueDeps; }}
+        ${go}/bin/go tool compile -pack ${asmLink} -o $out/${path}.a -importcfg=importcfg -trimpath=$PWD -trimpath=${go} -p ${path} ${includeSources uniqueDeps} ${spaceOut srcs}
         ${asmPack}
       '').overrideAttrs (_: {
         passthru = {

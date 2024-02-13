@@ -46,13 +46,13 @@ rec {
 
   # Determine whether to skip a target if it has not diverged from the
   # HEAD branch.
-  shouldSkip = parentTargetMap: label: drvPath:
+  shouldSkip = { parentTargetMap ? { }, label, drvPath }:
     if (hasAttr label parentTargetMap) && parentTargetMap."${label}".drvPath == drvPath
     then "Target has not changed."
     else false;
 
   # Create build command for a derivation target.
-  mkBuildCommand = target: drvPath: concatStringsSep " " [
+  mkBuildCommand = { target, drvPath }: concatStringsSep " " [
     # First try to realise the drvPath of the target so we don't evaluate twice.
     # Nix has no concept of depending on a derivation file without depending on
     # at least one of its `outPath`s, so we need to discard the string context
@@ -66,17 +66,16 @@ rec {
   ];
 
   # Create a pipeline step from a single target.
-  mkStep = headBranch: parentTargetMap: target: cancelOnBuildFailing:
+  mkStep = { headBranch, parentTargetMap, target, cancelOnBuildFailing }:
     let
       label = mkLabel target;
       drvPath = unsafeDiscardStringContext target.drvPath;
-      shouldSkip' = shouldSkip parentTargetMap;
     in
     {
       label = ":nix: " + label;
       key = hashString "sha1" label;
-      skip = shouldSkip' label drvPath;
-      command = mkBuildCommand target drvPath;
+      skip = shouldSkip { inherit label drvPath parentTargetMap; };
+      command = mkBuildCommand { inherit target drvPath; };
       env.READTREE_TARGET = label;
       cancel_on_build_failing = cancelOnBuildFailing;
 
@@ -190,14 +189,17 @@ rec {
       # phase (as phases end up in different chunks).
       targetToSteps = target:
         let
-          step = mkStep headBranch parentTargetMap target cancelOnBuildFailing;
+          mkStepArgs = {
+            inherit headBranch parentTargetMap target cancelOnBuildFailing;
+          };
+          step = mkStep mkStepArgs;
 
           # Same step, but with an override function applied. This is
           # used in mkExtraStep if the extra step needs to modify the
           # parent derivation somehow.
           #
           # Note that this will never affect the label.
-          overridable = f: mkStep headBranch parentTargetMap (f target) cancelOnBuildFailing;
+          overridable = f: mkStep (mkStepArgs // { target = (f target); });
 
           # Split extra steps by phase.
           splitExtraSteps = lib.groupBy ({ phase, ... }: phase)

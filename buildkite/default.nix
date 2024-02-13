@@ -46,17 +46,21 @@ rec {
     else false;
 
   # Create build command for an attribute path pointing to a derivation.
-  mkBuildCommand = { attrPath, drvPath }: concatStringsSep " " [
+  mkBuildCommand = { attrPath, drvPath, outLink ? "result" }: concatStringsSep " " [
     # First try to realise the drvPath of the target so we don't evaluate twice.
     # Nix has no concept of depending on a derivation file without depending on
     # at least one of its `outPath`s, so we need to discard the string context
     # if we don't want to build everything during pipeline construction.
-    "(nix-store --realise '${drvPath}' --add-root result --indirect && readlink result)"
+    #
+    # To make this more uniform with how nix-build(1) works, we call realpath(1)
+    # on nix-store(1)'s output since it has the habit of printing the path of the
+    # out link, not the store path.
+    "(nix-store --realise '${drvPath}' --add-root '${outLink}' --indirect | xargs realpath)"
 
     # Since we don't gcroot the derivation files, they may be deleted by the
     # garbage collector. In that case we can reevaluate and build the attribute
     # using nix-build.
-    "|| (test ! -f '${drvPath}' && nix-build -E '${mkBuildExpr attrPath}' --show-trace)"
+    "|| (test ! -f '${drvPath}' && nix-build -E '${mkBuildExpr attrPath}' --show-trace --out-link '${outLink}')"
   ];
 
   # Attribute path of a target relative to the depot root. Needs to take into
@@ -212,7 +216,7 @@ rec {
 
           extraSteps = mapAttrs
             (_: steps:
-              map (mkExtraStep buildEnabled) steps)
+              map (mkExtraStep (targetAttrPath target) buildEnabled) steps)
             splitExtraSteps;
         in
         if !buildEnabled then extraSteps
@@ -381,8 +385,11 @@ rec {
 
   # Create the Buildkite configuration for an extra step, optionally
   # wrapping it in a gate group.
-  mkExtraStep = buildEnabled: cfg:
+  mkExtraStep = parentAttrPath: buildEnabled: cfg:
     let
+      # ATTN: needs to match an entry in .gitignore so that the tree won't get dirty
+      commandScriptLink = "nix-buildkite-extra-step-command-script";
+
       step = {
         key = hashString "sha1" "${cfg.label}-${cfg.parentLabel}";
         label = ":gear: ${cfg.label} (from ${cfg.parentLabel})";
@@ -409,8 +416,22 @@ rec {
             "echo '~~~ Preparing build output of ${cfg.parentLabel}'"
           }
           ${lib.optionalString cfg.needsOutput cfg.parent.command}
-          echo '+++ Running extra step command'
-          exec ${cfg.command}
+          echo '--- Building extra step script'
+          command_script="$(${
+            # Using command substitution in this way assumes the script drv only has one output
+            assert builtins.length cfg.command.outputs == 1;
+            mkBuildCommand {
+              # script is exposed at <parent>.meta.ci.extraSteps.<key>.command
+              attrPath =
+                parentAttrPath
+                ++ [ "meta" "ci" "extraSteps" cfg.key "command" ];
+              drvPath = unsafeDiscardStringContext cfg.command.drvPath;
+              # make sure it doesn't conflict with result (from needsOutput)
+              outLink = commandScriptLink;
+            }
+          })"
+          echo '+++ Running extra step script'
+          exec "$command_script"
         '';
 
         soft_fail = cfg.softFail;

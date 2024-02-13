@@ -59,6 +59,13 @@ rec {
     "|| (test ! -f '${drvPath}' && nix-build -E '${mkBuildExpr attrPath}' --show-trace)"
   ];
 
+  # Attribute path of a target relative to the depot root. Needs to take into
+  # account whether the target is a physical target (which corresponds to a path
+  # in the filesystem) or the subtarget of a physical target.
+  targetAttrPath = target:
+    target.__readTree
+    ++ lib.optionals (target ? __subtarget) [ target.__subtarget ];
+
   # Create a pipeline step from a single target.
   mkStep = { headBranch, parentTargetMap, target, cancelOnBuildFailing }:
     let
@@ -70,9 +77,7 @@ rec {
       key = hashString "sha1" label;
       skip = shouldSkip { inherit label drvPath parentTargetMap; };
       command = mkBuildCommand {
-        attrPath =
-          target.__readTree
-          ++ lib.optionals (target ? __subtarget) [ target.__subtarget ];
+        attrPath = targetAttrPath target;
         inherit drvPath;
       };
       env.READTREE_TARGET = label;
@@ -257,9 +262,7 @@ rec {
 
         # Include the attrPath in the output to reconstruct the drv
         # without parsing the human-readable label.
-        attrPath = target.__readTree ++ lib.optionals (target ? __subtarget) [
-          target.__subtarget
-        ];
+        attrPath = targetAttrPath target;
       };
     })
     drvTargets)));

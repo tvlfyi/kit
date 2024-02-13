@@ -29,20 +29,14 @@ let
   inherit (depot.nix.readTree) mkLabel;
 in
 rec {
-  # Creates a Nix expression that yields the target at the specified
-  # location in the repository.
-  #
-  # This makes a distinction between normal targets (which physically
-  # exist in the repository) and subtargets (which are "virtual"
-  # targets exposed by a physical one) to make it clear in the build
-  # output which is which.
-  mkBuildExpr = target:
+  # Given an arbitrary attribute path generate a Nix expression which obtains
+  # this from the root of depot (assumed to be ./.). Attributes may be any
+  # Nix strings suitable as attribute names, not just Nix literal-safe strings.
+  mkBuildExpr = attrPath:
     let
       descend = expr: attr: "builtins.getAttr \"${attr}\" (${expr})";
-      targetExpr = foldl' descend "import ./. {}" target.__readTree;
-      subtargetExpr = descend targetExpr target.__subtarget;
     in
-    if target ? __subtarget then subtargetExpr else targetExpr;
+    foldl' descend "import ./. {}" attrPath;
 
   # Determine whether to skip a target if it has not diverged from the
   # HEAD branch.
@@ -51,8 +45,8 @@ rec {
     then "Target has not changed."
     else false;
 
-  # Create build command for a derivation target.
-  mkBuildCommand = { target, drvPath }: concatStringsSep " " [
+  # Create build command for an attribute path pointing to a derivation.
+  mkBuildCommand = { attrPath, drvPath }: concatStringsSep " " [
     # First try to realise the drvPath of the target so we don't evaluate twice.
     # Nix has no concept of depending on a derivation file without depending on
     # at least one of its `outPath`s, so we need to discard the string context
@@ -62,7 +56,7 @@ rec {
     # Since we don't gcroot the derivation files, they may be deleted by the
     # garbage collector. In that case we can reevaluate and build the attribute
     # using nix-build.
-    "|| (test ! -f '${drvPath}' && nix-build -E '${mkBuildExpr target}' --show-trace)"
+    "|| (test ! -f '${drvPath}' && nix-build -E '${mkBuildExpr attrPath}' --show-trace)"
   ];
 
   # Create a pipeline step from a single target.
@@ -75,7 +69,12 @@ rec {
       label = ":nix: " + label;
       key = hashString "sha1" label;
       skip = shouldSkip { inherit label drvPath parentTargetMap; };
-      command = mkBuildCommand { inherit target drvPath; };
+      command = mkBuildCommand {
+        attrPath =
+          target.__readTree
+          ++ lib.optionals (target ? __subtarget) [ target.__subtarget ];
+        inherit drvPath;
+      };
       env.READTREE_TARGET = label;
       cancel_on_build_failing = cancelOnBuildFailing;
 

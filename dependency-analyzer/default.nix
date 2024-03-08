@@ -16,30 +16,35 @@ let
   #
   # TODO(sterni): clean this up and expose it
   directDrvDeps =
-    if lib.versionAtLeast builtins.nixVersion "2.6"
-    then
-    # Since https://github.com/NixOS/nix/pull/1643, Nix apparently »preserves
-    # string context« through a readFile invocation. This has the side effect
-    # that it becomes possible to query the actual references a store path has.
-    # Not a 100% sure this is intended, but _very_ convenient for us here.
-      drvPath:
-      # if the passed path is not a derivation we can't necessarily get its
-      # dependencies, since it may not be representable as a Nix string due to
-      # NUL bytes, e.g. compressed patch files imported into the Nix store.
-      if builtins.match "^.+\\.drv$" drvPath == null
-      then [ ]
-      else builtins.attrNames (builtins.getContext (builtins.readFile drvPath))
-    else
-    # For Nix < 2.6 we have to rely on HACK, namely grepping for quoted store
-    # path references in the file. In the future this should be replaced by
-    # a proper derivation parser.
-      drvPath: builtins.concatLists (
-        builtins.filter builtins.isList (
-          builtins.split
-            "\"(${lib.escapeRegex builtins.storeDir}/[[:alnum:]+._?=-]+.drv)\""
-            (builtins.readFile drvPath)
-        )
-      );
+    let
+      getDeps =
+        if lib.versionAtLeast builtins.nixVersion "2.6"
+        then
+        # Since https://github.com/NixOS/nix/pull/1643, Nix apparently »preserves
+        # string context« through a readFile invocation. This has the side effect
+        # that it becomes possible to query the actual references a store path has.
+        # Not a 100% sure this is intended, but _very_ convenient for us here.
+          drvPath:
+          builtins.attrNames (builtins.getContext (builtins.readFile drvPath))
+        else
+        # For Nix < 2.6 we have to rely on HACK, namely grepping for quoted
+        # store path references in the file. In the future this should be
+        # replaced by a proper derivation parser.
+          drvPath: builtins.concatLists (
+            builtins.filter builtins.isList (
+              builtins.split
+                "\"(${lib.escapeRegex builtins.storeDir}/[[:alnum:]+._?=-]+.drv)\""
+                (builtins.readFile drvPath)
+            )
+          );
+    in
+    drvPath:
+    # if the passed path is not a derivation we can't necessarily get its
+    # dependencies, since it may not be representable as a Nix string due to
+    # NUL bytes, e.g. compressed patch files imported into the Nix store.
+    if builtins.match "^.+\\.drv$" drvPath == null
+    then [ ]
+    else getDeps drvPath;
 
   # Maps a list of derivation to the list of corresponding `drvPath`s.
   #

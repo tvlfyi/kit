@@ -27,6 +27,8 @@ let
 
   inherit (pkgs) lib runCommand writeText;
   inherit (depot.nix.readTree) mkLabel;
+
+  inherit (depot.nix) dependency-analyzer;
 in
 rec {
   # Create a unique key for the buildkite pipeline based on the given derivation
@@ -90,8 +92,21 @@ rec {
     target.__readTree
     ++ lib.optionals (target ? __subtarget) [ target.__subtarget ];
 
+  # Given a derivation (identified by drvPath) that is part of the list of
+  # targets passed to mkPipeline, determine all derivations that it depends on
+  # and are also part of the pipeline. Finally, return the keys of the steps
+  # that build them. This is used to populate `depends_on` in `mkStep`.
+  #
+  # See //nix/dependency-analyzer for documentation on the structure of `targetDepMap`.
+  getTargetPipelineDeps = targetDepMap: drvPath:
+    # Sanity check: We should only call this function on targets explicitly
+    # passed to mkPipeline. Thus it should have been passed as a “known” drv to
+    # dependency-analyzer.
+    assert targetDepMap.${drvPath}.known;
+    builtins.map keyForDrv targetDepMap.${drvPath}.knownDeps;
+
   # Create a pipeline step from a single target.
-  mkStep = { headBranch, parentTargetMap, target, cancelOnBuildFailing }:
+  mkStep = { headBranch, parentTargetMap, targetDepMap, target, cancelOnBuildFailing }:
     let
       label = mkLabel target;
       drvPath = unsafeDiscardStringContext target.drvPath;
@@ -110,7 +125,9 @@ rec {
       # Add a dependency on the initial static pipeline step which
       # always runs. This allows build steps uploaded in batches to
       # start running before all batches have been uploaded.
-      depends_on = [ ":init:" ] ++ lib.optionals (target ? meta.ci.buildkiteExtraDeps) target.meta.ci.buildkiteExtraDeps;
+      depends_on = [ ":init:" ]
+      ++ getTargetPipelineDeps targetDepMap drvPath
+      ++ lib.optionals (target ? meta.ci.buildkiteExtraDeps) target.meta.ci.buildkiteExtraDeps;
     } // lib.optionalAttrs (target ? meta.timeout) {
       timeout_in_minutes = target.meta.timeout / 60;
       # Additional arguments to set on the step.
@@ -213,12 +230,15 @@ rec {
       # logic/optimisation depends on knowing whether is executing.
       buildEnabled = elem "build" enabledPhases;
 
+      # Dependency relations between the `drvTargets`. See also //nix/dependency-analyzer.
+      targetDepMap = dependency-analyzer (dependency-analyzer.drvsToPaths drvTargets);
+
       # Convert a target into all of its steps, separated by build
       # phase (as phases end up in different chunks).
       targetToSteps = target:
         let
           mkStepArgs = {
-            inherit headBranch parentTargetMap target cancelOnBuildFailing;
+            inherit headBranch parentTargetMap targetDepMap target cancelOnBuildFailing;
           };
           step = mkStep mkStepArgs;
 

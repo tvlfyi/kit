@@ -47,6 +47,9 @@ rec {
 
   # Create build command for an attribute path pointing to a derivation.
   mkBuildCommand = { attrPath, drvPath, outLink ? "result" }: concatStringsSep " " [
+    # If the nix build fails, the Nix command's exit status should be used.
+    "set -o pipefail;"
+
     # First try to realise the drvPath of the target so we don't evaluate twice.
     # Nix has no concept of depending on a derivation file without depending on
     # at least one of its `outPath`s, so we need to discard the string context
@@ -55,7 +58,7 @@ rec {
     # To make this more uniform with how nix-build(1) works, we call realpath(1)
     # on nix-store(1)'s output since it has the habit of printing the path of the
     # out link, not the store path.
-    "(nix-store --realise '${drvPath}' --add-root '${outLink}' --indirect | xargs realpath)"
+    "(nix-store --realise '${drvPath}' --add-root '${outLink}' --indirect | xargs -r realpath)"
 
     # Since we don't gcroot the derivation files, they may be deleted by the
     # garbage collector. In that case we can reevaluate and build the attribute

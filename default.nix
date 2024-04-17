@@ -23,14 +23,22 @@ pkgs.lib.fix (self: {
 
   buildkite = import ./buildkite {
     inherit pkgs;
-    depot.nix.readTree = self.readTree;
+    depot.nix = {
+      inherit (self) readTree dependency-analyzer;
+    };
   };
 
   checks = import ./checks { inherit pkgs; };
+  dependency-analyzer = import ./dependency-analyzer {
+    inherit pkgs;
+    inherit (pkgs) lib;
+    depot.nix.stateMonad = self.stateMonad;
+  };
   lazy-deps = import ./lazy-deps {
     inherit pkgs;
     lib = pkgs.lib;
   };
   magrathea = import ./magrathea { inherit pkgs; };
   readTree = import ./readTree { };
+  stateMonad = import ./stateMonad { };
 })

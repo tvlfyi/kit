@@ -42,8 +42,6 @@ let
 
   xFlags = x_defs: spaceOut (map (k: "-X ${k}=${x_defs."${k}"}") (attrNames x_defs));
 
-  pathToName = p: replaceStrings [ "/" ] [ "_" ] (toString p);
-
   # Add an `overrideGo` attribute to a function result that works
   # similar to `overrideAttrs`, but is used specifically for the
   # arguments passed to Go builders.

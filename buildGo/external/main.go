@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -74,8 +73,8 @@ func findGoDirs(at string) ([]string, error) {
 	}
 
 	goDirs := []string{}
-	for k, _ := range dirSet {
-		goDirs = append(goDirs, k)
+	for goDir := range dirSet {
+		goDirs = append(goDirs, goDir)
 	}
 
 	return goDirs, nil
@@ -148,7 +147,7 @@ func analysePackage(root, source, importpath string, stdlib map[string]bool) (pk
 }
 
 func loadStdlibPkgs(from string) (pkgs map[string]bool, err error) {
-	f, err := ioutil.ReadFile(from)
+	f, err := os.ReadFile(from)
 	if err != nil {
 		return
 	}

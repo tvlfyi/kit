@@ -416,7 +416,7 @@ rec {
       prompt = lib.throwIf (prompt != false && phase == "build") ''
         In step '${label}' (from ${parentLabel}):
 
-        The 'prompt' feature can only be used by steps in the "release"
+        The 'prompt' feature can not be used by steps in the "build"
         phase, because CI builds should not be gated on manual human
         approvals.
       ''

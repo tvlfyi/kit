@@ -8,7 +8,6 @@
 //
 // Gerrit (ref-updated) hook:
 // - Trigger Buildkite CI builds
-// - Trigger SourceGraph repository index updates
 //
 // Buildkite (post-command) hook:
 // - Submit CL verification status back to Gerrit
@@ -55,10 +54,6 @@ type config struct {
 	BuildkiteProject string `json:"buildkiteProject"`
 	BuildkiteToken   string `json:"buildkiteToken"`
 	GerritChangeName string `json:"gerritChangeName"`
-
-	// Optional configuration for Sourcegraph trigger updates.
-	SourcegraphUrl   string `json:"sourcegraphUrl"`
-	SourcegraphToken string `json:"sourcegraphToken"`
 }
 
 // buildTrigger represents the information passed to besadii when it
@@ -152,11 +147,6 @@ func loadConfig() (*config, error) {
 	}
 	if !gerritChangeNameCheck.MatchString(cfg.GerritChangeName) {
 		return nil, fmt.Errorf("invalid 'gerritChangeName': %s", cfg.GerritChangeName)
-	}
-
-	// Rudimentary config validation logic
-	if cfg.SourcegraphUrl != "" && cfg.SourcegraphToken == "" {
-		return nil, fmt.Errorf("'SourcegraphToken' must be set if 'SourcegraphUrl' is set")
 	}
 
 	if cfg.Repository == "" || cfg.Branch == "" {
@@ -299,26 +289,6 @@ func triggerBuild(cfg *config, log *syslog.Writer, trigger *buildTrigger) error 
 	return nil
 }
 
-// Trigger a Sourcegraph repository index update.
-//
-// https://docs.sourcegraph.com/admin/repo/webhooks
-func triggerIndexUpdate(cfg *config, log *syslog.Writer) error {
-	req, err := http.NewRequest("POST", cfg.SourcegraphUrl, nil)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Add("Authorization", "token "+cfg.SourcegraphToken)
-
-	_, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to trigger Sourcegraph index update: %w", err)
-	}
-
-	log.Info("triggered sourcegraph index update")
-	return nil
-}
-
 // Gerrit passes more flags than we want, but Rob Pike decided[0] in
 // 2013 that the Go art project will not allow users to ignore flags
 // because he "doesn't like it". This function allows users to ignore
@@ -457,13 +427,6 @@ func gerritHookMain(cfg *config, log *syslog.Writer, trigger *buildTrigger) {
 
 	if err != nil {
 		log.Err(fmt.Sprintf("failed to trigger Buildkite build: %s", err))
-	}
-
-	if cfg.SourcegraphUrl != "" && trigger.ref == cfg.Branch {
-		err = triggerIndexUpdate(cfg, log)
-		if err != nil {
-			log.Err(fmt.Sprintf("failed to trigger sourcegraph index update: %s", err))
-		}
 	}
 }
 

@@ -99,11 +99,7 @@ rec {
   #
   # See //nix/dependency-analyzer for documentation on the structure of `targetDepMap`.
   getTargetPipelineDeps = targetDepMap: drvPath:
-    # Sanity check: We should only call this function on targets explicitly
-    # passed to mkPipeline. Thus it should have been passed as a “known” drv to
-    # dependency-analyzer.
-    assert targetDepMap.${drvPath}.known;
-    builtins.map keyForDrv targetDepMap.${drvPath}.knownDeps;
+    builtins.map keyForDrv (targetDepMap.${drvPath}.knownDeps or [ ]);
 
   # Create a pipeline step from a single target.
   mkStep = { headBranch, parentTargetMap, targetDepMap, target, cancelOnBuildFailing }:
@@ -231,7 +227,19 @@ rec {
       buildEnabled = elem "build" enabledPhases;
 
       # Dependency relations between the `drvTargets`. See also //nix/dependency-analyzer.
-      targetDepMap = dependency-analyzer (dependency-analyzer.drvsToPaths drvTargets);
+      targetDepMap =
+        let
+          # Only calculate dependencies between drvTargets that were not part of
+          # the previous pipeline (per parentTargetMap). Unchanged targets will
+          # be skipped (assumed already built), so it's useless to emit deps
+          # on their steps.
+          changedDrvTargets = builtins.filter
+            (target:
+              parentTargetMap.${mkLabel target}.drvPath or null != target.drvPath
+            )
+            drvTargets;
+        in
+        dependency-analyzer (dependency-analyzer.drvsToPaths changedDrvTargets);
 
       # Convert a target into all of its steps, separated by build
       # phase (as phases end up in different chunks).

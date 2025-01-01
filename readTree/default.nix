@@ -259,12 +259,12 @@ in
     , args
     , filter ? (_parts: x: x)
     , scopedArgs ? { }
+    , rootDir ? true
     }:
     readTree {
-      inherit args scopedArgs;
+      inherit args scopedArgs rootDir;
       argsFilter = filter;
       initPath = path;
-      rootDir = true;
       parts = [ ];
     };
 

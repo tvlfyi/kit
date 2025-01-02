@@ -17,7 +17,6 @@ let
     foldl'
     hasAttr
     hashString
-    isNull
     isString
     length
     listToAttrs

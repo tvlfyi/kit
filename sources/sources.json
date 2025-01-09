@@ -14,6 +14,7 @@
     "gitignore.nix": {
         "branch": "master",
         "description": "Nix functions for filtering local git sources",
+        "gcroot": true,
         "homepage": "",
         "owner": "hercules-ci",
         "repo": "gitignore.nix",
@@ -26,6 +27,7 @@
     "home-manager": {
         "branch": "master",
         "description": "Manage a user environment using Nix  [maintainer=@rycee] ",
+        "gcroot": true,
         "homepage": "https://nix-community.github.io/home-manager/",
         "owner": "nix-community",
         "repo": "home-manager",
@@ -74,6 +76,7 @@
     "nixpkgs": {
         "branch": "nixos-unstable",
         "description": "Nix Packages collection",
+        "gcroot": true,
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
@@ -86,6 +89,7 @@
     "nixpkgs-stable": {
         "branch": "nixos-23.11",
         "description": "Nix Packages collection",
+        "gcroot": true,
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
@@ -98,6 +102,7 @@
     "rust-overlay": {
         "branch": "master",
         "description": "Pure and reproducible nix overlay of binary distributed rust toolchains",
+        "gcroot": true,
         "homepage": "",
         "owner": "oxalica",
         "repo": "rust-overlay",

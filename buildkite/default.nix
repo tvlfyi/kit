@@ -457,7 +457,7 @@ rec {
           (buildEnabled && !cfg.alwaysRun && !cfg.needsOutput)
           cfg.parent.key;
 
-        command = pkgs.writeShellScript "${cfg.key}-script" ''
+        command = ''
           set -ueo pipefail
           ${lib.optionalString cfg.needsOutput
             "echo '~~~ Preparing build output of ${cfg.parentLabel}'"
@@ -478,7 +478,8 @@ rec {
             }
           })"
           echo '+++ Running extra step script'
-          exec "$command_script"
+          # ATTN: buildkite substitutes this variable outside of the execution for some reason
+          exec "\$command_script"
         '';
 
         soft_fail = cfg.softFail;

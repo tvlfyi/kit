@@ -77,12 +77,36 @@ let
         })
     else a // b;
 
+  # Like `builtins.scopedImport scopedArgs`, but ensures that `scopedArgs` is
+  # also applied to any subsequent imports (scoped or otherwise) performed by
+  # the imported files (and so on).
+  #
+  # Note that changes to scopedImport and import in scopedArgs are silently
+  # ignored.
+  propagatingScopedImport = scopedArgs:
+    let
+      propagatingScopedArgs = scopedArgs // {
+        import = propagatingScopedImport scopedArgs;
+        scopedImport = scopedArgs': propagatingScopedImport (scopedArgs // scopedArgs');
+
+        builtins = scopedArgs.builtins or builtins // {
+          import = propagatingScopedArgs.import;
+          scopedImport = propagatingScopedArgs.scopedImport;
+        };
+      };
+    in
+      /* We could allow the user to change the import implementation using
+       `scopedArgs.builtins.scopedImport or builtins.scopedImport`,
+       but what would be the use case?
+      */
+    builtins.scopedImport propagatingScopedArgs;
+
   # Import a file and enforce our calling convention
   importFile = args: scopedArgs: path: parts: filter:
     let
       importedFile =
         if scopedArgs != { } && builtins ? scopedImport # For tvix
-        then builtins.scopedImport scopedArgs path
+        then propagatingScopedImport scopedArgs path
         else import path;
       pathType = builtins.typeOf importedFile;
     in
@@ -323,4 +347,8 @@ in
         };
       };
     };
+
+  # Exposed because it is reusable (and for the test suite).
+  # See above for documentation.
+  inherit propagatingScopedImport;
 }

@@ -130,10 +130,50 @@ let
       read-markers.directory-marked.nested.__readTreeChildren [ ])
   ];
 
+  propagating-scoped-import =
+    let
+      result = import ./test-propagating-scoped-import {
+        inherit (depot.nix.readTree) propagatingScopedImport;
+      };
+    in
+    it "propagates scopedArgs correctly" [
+      (assertEq "global gets added correctly" result.constant 5)
+      (assertEq "builtins.add gets changed correctly"
+        result.double-constant
+        (5 - 5))
+      (assertEq "scopedArgs get propagated across import"
+        result.transitive-import
+        (28 - 5))
+      (assertEq "unchanged scopedArgs get propagated across scopedImport"
+        result.transitive-scoped-import
+        (28 + 5))
+      (assertEq "unchanged scopedArgs get propagated across two imports"
+        result.transitive-import-importing [
+        null
+        (28 - 5)
+        (28 - 42)
+        5
+        (5 * 2 - 5)
+      ])
+      (assertEq "changed scopedArgs get propagated across two imports" result.transitive-scoped-import-importing [
+        "null"
+        (28 * 5)
+        (28 * 42)
+        5
+        (5 * 2 * 5)
+      ])
+      (assertEq "builtins set is correct if scopedArgs.builtins = { }"
+        result.empty-ish-builtins
+        [ "import" "scopedImport" ])
+      (assertEq "all default builtins are present if !(scopedArgs ? builtins)"
+        result.have-all-default-builtins
+        true)
+    ];
 in
 runTestsuite "readTree" [
   example
   traversal-logic
   wrong
   markers
+  propagating-scoped-import
 ]

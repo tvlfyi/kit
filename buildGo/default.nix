@@ -22,7 +22,7 @@ let
     replaceStrings
     toString;
 
-  inherit (pkgs) lib runCommand fetchFromGitHub protobuf symlinkJoin go;
+  inherit (pkgs) lib runCommand runCommandCC fetchFromGitHub protobuf symlinkJoin go;
   goStdlib = buildStdlib go;
 
   # Helpers for low-level Go compiler invocations
@@ -49,7 +49,7 @@ let
     overrideGo = new: makeOverridable f (orig // (new orig));
   };
 
-  buildStdlib = go: runCommand "go-stdlib-${go.version}"
+  buildStdlib = go: runCommandCC "go-stdlib-${go.version}"
     {
       nativeBuildInputs = [ go ];
     } ''
@@ -120,6 +120,7 @@ let
       '';
 
       gopkg = (runCommand "golib-${name}" { } ''
+        export HOME=$NIX_BUILD_TOP/home
         mkdir -p $out/${path}
         ${srcList path (map (s: "${s}") srcs)}
         ${asmBuild}

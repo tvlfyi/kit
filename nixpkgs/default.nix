@@ -35,7 +35,7 @@ let
         checkMeta = false;
         permittedInsecurePackages = [
           # TODO(tazjin): https://github.com/tvlfyi/nix/pull/5
-          "nix-2.3.18-d516e28"
+          "nix-2.3.18-4f415e6"
         ];
       };
 

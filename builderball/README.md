@@ -16,7 +16,8 @@ There are two primary use-cases for this:
    each other to find already built artifacts.
 
 Builderball is tested with caches backed by
-[Harmonia](https://github.com/nix-community/harmonia), but other caches (the
+[Harmonia](https://github.com/nix-community/harmonia) and
+[nix-serve](https://github.com/edolstra/nix-serve), but other caches (the
 upstream binary cache, Cachix, etc.) should also work fine.
 
 TVL uses Builderball to have builders dynamically join the CI pool and

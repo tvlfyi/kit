@@ -68,6 +68,13 @@ let
       stable = depot.third_party.sources.nixpkgs-stable.rev;
     };
   };
+
+  # Overlay to introduce a lazy `alt` namespace.
+  altOverlay = final: prev: {
+    alt = prev.alt or { } // {
+      inherit ((depot.third_party.overlays.sam.overlay final prev).alt) sam;
+    };
+  };
 in
 import nixpkgsSrc (commonNixpkgsArgs // {
   overlays = [
@@ -79,5 +86,6 @@ import nixpkgsSrc (commonNixpkgsArgs // {
     depot.third_party.overlays.ecl-static
     depot.third_party.overlays.dhall
     (import depot.third_party.sources.rust-overlay)
+    altOverlay
   ] else [ ] ++ additionalOverlays);
 })

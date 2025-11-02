@@ -7,6 +7,14 @@ let
   # Utilities
   #
 
+  hasContextualizedReadFile =
+    builtins.nixVersion == "2.18.3-lix" || (
+      # If there's no sort of version suffix, we assume it's C++ Nix.
+      # I'm not gonna look up whatever determinate systems' fork does.
+      builtins.match "[0-9]+(\\.[0-9]+)*" builtins.nixVersion != null
+      && lib.versionAtLeast builtins.nixVersion "2.6"
+    );
+
   # Determine all paths a derivation depends on, i.e. input derivations and
   # files imported into the Nix store.
   #
@@ -18,7 +26,7 @@ let
   directDrvDeps =
     let
       getDeps =
-        if lib.versionAtLeast builtins.nixVersion "2.6"
+        if hasContextualizedReadFile
         then
         # Since https://github.com/NixOS/nix/pull/1643, Nix apparently »preserves
         # string context« through a readFile invocation. This has the side effect

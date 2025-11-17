@@ -133,6 +133,20 @@
       "revision": "2a699493588fe2e3c0f6bdac7e14a5cc3701b8a8",
       "url": "https://github.com/RustSec/advisory-db/archive/2a699493588fe2e3c0f6bdac7e14a5cc3701b8a8.tar.gz",
       "hash": "sha256-EI04vtsDqLdSFVGGmYht0wh1QDoFRvKeOh7CUm/a2cY="
+    },
+    "slam": {
+      "type": "Git",
+      "repository": {
+        "type": "Forgejo",
+        "server": "https://git.syndicate-lang.org/",
+        "owner": "synit",
+        "repo": "slam"
+      },
+      "branch": "trunk",
+      "submodules": false,
+      "revision": "964ebc5334eca41d8011e6dc788453bc6fcda047",
+      "url": "https://git.syndicate-lang.org/synit/slam/archive/964ebc5334eca41d8011e6dc788453bc6fcda047.tar.gz",
+      "hash": "sha256-u/59FrL3z2FUMcmUQ7cM2Ez6wPRDomUViK6rjIQB5O8="
     }
   },
   "version": 7

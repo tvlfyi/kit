@@ -72,7 +72,12 @@ let
   # Overlay to introduce a lazy `alt` namespace.
   altOverlay = final: prev: {
     alt = prev.alt or { } // {
-      inherit ((depot.third_party.overlays.sam.overlay final prev).alt) sam;
+      sam =
+        let
+          sources' = import "${depot.third_party.sources.slam}/lon.nix";
+          pkgs' = import "${sources'.sampkgs}/overlay.nix" final prev;
+        in
+        pkgs'.alt.sam;
     };
   };
 in

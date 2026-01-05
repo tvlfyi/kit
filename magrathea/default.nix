@@ -32,8 +32,4 @@ stdenv.mkDerivation {
     mkdir -p $out/bin
     csc -o $out/bin/mg -host -static ${./mg.scm}
   '';
-
-  fixupPhase = ''
-    wrapProgram $out/bin/mg --prefix PATH ${lib.makeBinPath [ nix ]}
-  '';
 }

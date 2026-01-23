@@ -23,19 +23,6 @@
         "url": "https://github.com/mlochbaum/bqn-libs/archive/4df4f8ca1356508d27b03131350e25c19114c7cd.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "gitignore.nix": {
-        "branch": "master",
-        "description": "Nix functions for filtering local git sources",
-        "gcroot": true,
-        "homepage": "",
-        "owner": "hercules-ci",
-        "repo": "gitignore.nix",
-        "rev": "cb5e3fdca1de58ccbc3ef53de65bd372b48f567c",
-        "sha256": "1vjjcjx5z0lci8psn3xkcb5rqrpxknkw6w0q38bk8cadwr6whs2y",
-        "type": "tarball",
-        "url": "https://github.com/hercules-ci/gitignore.nix/archive/cb5e3fdca1de58ccbc3ef53de65bd372b48f567c.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "home-manager": {
         "branch": "master",
         "description": "Manage a user environment using Nix  [maintainer=@rycee] ",

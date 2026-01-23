@@ -19,6 +19,8 @@ pkgs.lib.fix (self: {
     depot.nix.buildGo = self.buildGo;
   };
 
+  builderball = import ./builderball { inherit pkgs; };
+
   buildGo = import ./buildGo { inherit pkgs; };
 
   buildkite = import ./buildkite {

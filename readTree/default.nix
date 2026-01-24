@@ -101,6 +101,8 @@ let
       */
     builtins.scopedImport propagatingScopedArgs;
 
+  isFunction = val: builtins.isFunction val.__functor or val;
+
   # Import a file and enforce our calling convention
   importFile = args: scopedArgs: path: parts: filter:
     let
@@ -110,7 +112,7 @@ let
         else import path;
       pathType = builtins.typeOf importedFile;
     in
-    if pathType != "lambda"
+    if !(isFunction importedFile)
     then throw "readTree: trying to import ${toString path}, but it’s a ${pathType}, you need to make it a function like { depot, pkgs, ... }"
     else importedFile (filter parts (argsWithPath args parts));
 

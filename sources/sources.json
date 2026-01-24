@@ -1,126 +1,139 @@
 {
+  "pins": {
     "agenix": {
-        "branch": "main",
-        "description": "age-encrypted secrets for NixOS",
-        "homepage": "https://matrix.to/#/#agenix:nixos.org",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "ryantm",
-        "repo": "agenix",
-        "rev": "fcdea223397448d35d9b31f798479227e80183f6",
-        "sha256": "1d4m7hsq727q7ndjqmgyl8vkbkqjwps962ygmv2mcc5dbqzgn963",
-        "type": "tarball",
-        "url": "https://github.com/ryantm/agenix/archive/fcdea223397448d35d9b31f798479227e80183f6.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "agenix"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "fcdea223397448d35d9b31f798479227e80183f6",
+      "url": "https://github.com/ryantm/agenix/archive/fcdea223397448d35d9b31f798479227e80183f6.tar.gz",
+      "hash": "sha256-wyT7Pl6tMFbFrs8Lk/TlEs81N6L+VSybPfiIgzU8lbQ="
     },
     "bqn-libs": {
-        "branch": "master",
-        "description": "Informal collection of BQN utilities",
-        "homepage": "",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "mlochbaum",
-        "repo": "bqn-libs",
-        "rev": "4df4f8ca1356508d27b03131350e25c19114c7cd",
-        "sha256": "0rk2bvf74idwigxy4k2vcr24cf8vdx44614dkqlw6lds1jwmcqx9",
-        "type": "tarball",
-        "url": "https://github.com/mlochbaum/bqn-libs/archive/4df4f8ca1356508d27b03131350e25c19114c7cd.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "bqn-libs"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "4df4f8ca1356508d27b03131350e25c19114c7cd",
+      "url": "https://github.com/mlochbaum/bqn-libs/archive/4df4f8ca1356508d27b03131350e25c19114c7cd.tar.gz",
+      "hash": "sha256-qWNWuQy6UcMpno0EQ0hvGzlGRGZbTOL7i7xFctxeYmY="
     },
     "home-manager": {
-        "branch": "master",
-        "description": "Manage a user environment using Nix  [maintainer=@rycee] ",
-        "gcroot": true,
-        "homepage": "https://nix-community.github.io/home-manager/",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "nix-community",
-        "repo": "home-manager",
-        "rev": "2539eba97a6df237d75617c25cd2dbef92df3d5b",
-        "sha256": "0c4dv5sqa9i3hwc0ljcf0jk6n999kbfwqhjrjc7dgvzh7azjsb78",
-        "type": "tarball",
-        "url": "https://github.com/nix-community/home-manager/archive/2539eba97a6df237d75617c25cd2dbef92df3d5b.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "home-manager"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "2539eba97a6df237d75617c25cd2dbef92df3d5b",
+      "url": "https://github.com/nix-community/home-manager/archive/2539eba97a6df237d75617c25cd2dbef92df3d5b.tar.gz",
+      "hash": "sha256-6Cwtvzrw79cOk1lCzN2aKSVrpgSOSQoYhyMmhXXZjTA=",
+      "gcroot": true
     },
     "impermanence": {
-        "branch": "master",
-        "description": "Modules to help you handle persistent state on systems with ephemeral root storage [maintainer=@talyz]",
-        "homepage": "",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "nix-community",
-        "repo": "impermanence",
-        "rev": "69ecf31e8fddc9354a4b418f3a517445d486bb54",
-        "sha256": "126wphb08x0hz4mv9dvy7jh2cbxqwy3gn37rxds4nfjwfdynqb1v",
-        "type": "tarball",
-        "url": "https://github.com/nix-community/impermanence/archive/69ecf31e8fddc9354a4b418f3a517445d486bb54.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "impermanence"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "69ecf31e8fddc9354a4b418f3a517445d486bb54",
+      "url": "https://github.com/nix-community/impermanence/archive/69ecf31e8fddc9354a4b418f3a517445d486bb54.tar.gz",
+      "hash": "sha256-OyxsfXNcOkt06/kM+4bnuC8moDx+t7Qr+RB0BBa83Ig="
     },
     "naersk": {
-        "branch": "master",
-        "description": "Build rust crates in Nix. No configuration, no code generation, no IFD. Sandbox friendly. [maintainer: @Patryk27]",
-        "homepage": "",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "nmattia",
-        "repo": "naersk",
-        "rev": "8d97452673640eb7fabe428e8b6a425bc355008b",
-        "sha256": "0sgs8dh8yw62dzpd0mm6byf2q4vwqab3r0i62qy52las85f4p1qw",
-        "type": "tarball",
-        "url": "https://github.com/nmattia/naersk/archive/8d97452673640eb7fabe428e8b6a425bc355008b.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "naersk"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "8d97452673640eb7fabe428e8b6a425bc355008b",
+      "url": "https://github.com/nmattia/naersk/archive/8d97452673640eb7fabe428e8b6a425bc355008b.tar.gz",
+      "hash": "sha256-HIdLXEFaUVE8FiaCPJbCfBMsnF+mVtDub8Jwj2BD+mk="
     },
     "napalm": {
-        "branch": "master",
-        "description": "Support for building npm packages in Nix and lightweight npm registry [maintainer @nmattia]",
-        "homepage": "",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "nix-community",
-        "repo": "napalm",
-        "rev": "e1babff744cd278b56abe8478008b4a9e23036cf",
-        "sha256": "04h62p4hxw7fhclki7hcn739hhig3rh9q4njp24j7bm0dk2kj8h6",
-        "type": "tarball",
-        "url": "https://github.com/nix-community/napalm/archive/e1babff744cd278b56abe8478008b4a9e23036cf.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "napalm"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "e1babff744cd278b56abe8478008b4a9e23036cf",
+      "url": "https://github.com/nix-community/napalm/archive/e1babff744cd278b56abe8478008b4a9e23036cf.tar.gz",
+      "hash": "sha256-BiI5xWygriOJuNISnGAeL0KYxrEMnjgpg+7wDskVBhI="
     },
     "nixpkgs": {
-        "branch": "nixos-unstable",
-        "description": "Nix Packages collection",
-        "gcroot": true,
-        "homepage": "",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-        "sha256": "15ypswq0yiwk5rsmkp2zkprs1gb2va5gj2nvwqai3d4d5l5vp79h",
-        "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/88d3861acdd3d2f0e361767018218e51810df8a1.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "nixpkgs"
+      },
+      "branch": "nixos-unstable",
+      "submodules": false,
+      "revision": "88d3861acdd3d2f0e361767018218e51810df8a1",
+      "url": "https://github.com/NixOS/nixpkgs/archive/88d3861acdd3d2f0e361767018218e51810df8a1.tar.gz",
+      "hash": "sha256-MJ27Cy2NtBEV5tsK+YraYr2g851f3Fl1LpNHDzDX15c=",
+      "gcroot": true
     },
     "nixpkgs-stable": {
-        "branch": "nixos-23.11",
-        "description": "Nix Packages collection",
-        "gcroot": true,
-        "homepage": "",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "205fd4226592cc83fd4c0885a3e4c9c400efabb5",
-        "sha256": "1f5d2g1p6nfwycpmrnnmc2xmcszp804adp16knjvdkj8nz36y1fg",
-        "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/205fd4226592cc83fd4c0885a3e4c9c400efabb5.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "nixpkgs"
+      },
+      "branch": "nixos-23.11",
+      "submodules": false,
+      "revision": "205fd4226592cc83fd4c0885a3e4c9c400efabb5",
+      "url": "https://github.com/NixOS/nixpkgs/archive/205fd4226592cc83fd4c0885a3e4c9c400efabb5.tar.gz",
+      "hash": "sha256-zwVvxrdIzralnSbcpghA92tWu2DV2lwv89xZc8MTrbg=",
+      "gcroot": true
     },
     "rust-overlay": {
-        "branch": "master",
-        "description": "Pure and reproducible nix overlay of binary distributed rust toolchains",
-        "gcroot": true,
-        "homepage": "",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "oxalica",
-        "repo": "rust-overlay",
-        "rev": "22da29e7f3d8cff75009cbbcf992c7cb66920cfd",
-        "sha256": "09amdgq7cmq5g5j5w6dx5vyjvmkndayjrg6aci0yfbmkrrksivl2",
-        "type": "tarball",
-        "url": "https://github.com/oxalica/rust-overlay/archive/22da29e7f3d8cff75009cbbcf992c7cb66920cfd.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "rust-overlay"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "22da29e7f3d8cff75009cbbcf992c7cb66920cfd",
+      "url": "https://github.com/oxalica/rust-overlay/archive/22da29e7f3d8cff75009cbbcf992c7cb66920cfd.tar.gz",
+      "hash": "sha256-gu6oZ86zLudBZMq8LL1qdtYt/S69GV5keQVXdvBrVSU=",
+      "gcroot": true
     },
     "rustsec-advisory-db": {
-        "branch": "main",
-        "description": "Security advisory database for Rust crates published through crates.io",
-        "homepage": "https://rustsec.org",
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
         "owner": "RustSec",
-        "repo": "advisory-db",
-        "rev": "2a699493588fe2e3c0f6bdac7e14a5cc3701b8a8",
-        "sha256": "1inrv9pm5hhy7agg4ih57907a26kdn49k1ji2m9bga03vfz3i38h",
-        "type": "tarball",
-        "url": "https://github.com/RustSec/advisory-db/archive/2a699493588fe2e3c0f6bdac7e14a5cc3701b8a8.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "repo": "advisory-db"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "2a699493588fe2e3c0f6bdac7e14a5cc3701b8a8",
+      "url": "https://github.com/RustSec/advisory-db/archive/2a699493588fe2e3c0f6bdac7e14a5cc3701b8a8.tar.gz",
+      "hash": "sha256-EI04vtsDqLdSFVGGmYht0wh1QDoFRvKeOh7CUm/a2cY="
     }
+  },
+  "version": 7
 }

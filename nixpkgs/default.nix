@@ -1,7 +1,7 @@
 # This file imports the pinned nixpkgs sets and applies relevant
 # modifications, such as our overlays.
 #
-# The actual source pinning happens via niv in //third_party/sources
+# The actual source pinning happens via npins in //third_party/sources
 #
 # Note that the attribute exposed by this (third_party.nixpkgs) is
 # "special" in that the fixpoint used as readTree's config parameter
@@ -64,8 +64,8 @@ let
   # Overlay to expose the nixpkgs commits we are using to other Nix code.
   commitsOverlay = _: _: {
     nixpkgsCommits = {
-      unstable = depot.third_party.sources.nixpkgs.rev;
-      stable = depot.third_party.sources.nixpkgs-stable.rev;
+      unstable = depot.third_party.sources.nixpkgs.revision;
+      stable = depot.third_party.sources.nixpkgs-stable.revision;
     };
   };
 

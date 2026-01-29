@@ -37,8 +37,7 @@
       "submodules": false,
       "revision": "2539eba97a6df237d75617c25cd2dbef92df3d5b",
       "url": "https://github.com/nix-community/home-manager/archive/2539eba97a6df237d75617c25cd2dbef92df3d5b.tar.gz",
-      "hash": "sha256-6Cwtvzrw79cOk1lCzN2aKSVrpgSOSQoYhyMmhXXZjTA=",
-      "gcroot": true
+      "hash": "sha256-6Cwtvzrw79cOk1lCzN2aKSVrpgSOSQoYhyMmhXXZjTA="
     },
     "impermanence": {
       "type": "Git",
@@ -90,8 +89,7 @@
       "submodules": false,
       "revision": "88d3861acdd3d2f0e361767018218e51810df8a1",
       "url": "https://github.com/NixOS/nixpkgs/archive/88d3861acdd3d2f0e361767018218e51810df8a1.tar.gz",
-      "hash": "sha256-MJ27Cy2NtBEV5tsK+YraYr2g851f3Fl1LpNHDzDX15c=",
-      "gcroot": true
+      "hash": "sha256-MJ27Cy2NtBEV5tsK+YraYr2g851f3Fl1LpNHDzDX15c="
     },
     "nixpkgs-stable": {
       "type": "Git",
@@ -104,8 +102,7 @@
       "submodules": false,
       "revision": "205fd4226592cc83fd4c0885a3e4c9c400efabb5",
       "url": "https://github.com/NixOS/nixpkgs/archive/205fd4226592cc83fd4c0885a3e4c9c400efabb5.tar.gz",
-      "hash": "sha256-zwVvxrdIzralnSbcpghA92tWu2DV2lwv89xZc8MTrbg=",
-      "gcroot": true
+      "hash": "sha256-zwVvxrdIzralnSbcpghA92tWu2DV2lwv89xZc8MTrbg="
     },
     "rust-overlay": {
       "type": "Git",
@@ -118,8 +115,7 @@
       "submodules": false,
       "revision": "22da29e7f3d8cff75009cbbcf992c7cb66920cfd",
       "url": "https://github.com/oxalica/rust-overlay/archive/22da29e7f3d8cff75009cbbcf992c7cb66920cfd.tar.gz",
-      "hash": "sha256-gu6oZ86zLudBZMq8LL1qdtYt/S69GV5keQVXdvBrVSU=",
-      "gcroot": true
+      "hash": "sha256-gu6oZ86zLudBZMq8LL1qdtYt/S69GV5keQVXdvBrVSU="
     },
     "rustsec-advisory-db": {
       "type": "Git",

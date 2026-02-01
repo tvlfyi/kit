@@ -299,7 +299,7 @@ if you meant to pass these arguments to nix, please separate them with
                            args)]))
 
 (define (repl args)
-  (process-execute "nix" (append (list "repl" "--show-trace" (repository-root)) args)))
+  (process-execute "nix" (append (list "repl" "--show-trace" "--file" (repository-root)) args)))
 
 (define (read-chomping pipe)
   (let ((s (read-string #f pipe)))

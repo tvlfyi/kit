@@ -9,9 +9,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "fcdea223397448d35d9b31f798479227e80183f6",
-      "url": "https://github.com/ryantm/agenix/archive/fcdea223397448d35d9b31f798479227e80183f6.tar.gz",
-      "hash": "sha256-wyT7Pl6tMFbFrs8Lk/TlEs81N6L+VSybPfiIgzU8lbQ="
+      "revision": "b027ee29d959fda4b60b57566d64c98a202e0feb",
+      "url": "https://github.com/ryantm/agenix/archive/b027ee29d959fda4b60b57566d64c98a202e0feb.tar.gz",
+      "hash": "sha256-9VnK6Oqai65puVJ4WYtCTvlJeXxMzAp/69HhQuTdl/I="
     },
     "bqn-libs": {
       "type": "Git",
@@ -35,9 +35,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "0fba737f8d5571d41467f3d99a878e11b8c0f0f0",
-      "url": "https://github.com/nix-community/home-manager/archive/0fba737f8d5571d41467f3d99a878e11b8c0f0f0.tar.gz",
-      "hash": "sha256-70a1kVC08AMTvPc7iqQsJbbD4Y1fukakMVudz4oY9SM="
+      "revision": "cbd8a72e5fe6af19d40e2741dc440d9227836860",
+      "url": "https://github.com/nix-community/home-manager/archive/cbd8a72e5fe6af19d40e2741dc440d9227836860.tar.gz",
+      "hash": "sha256-8b+0vixdqGnIIcgsPhjdX7EGPdzcVQqYxF+ujjex654="
     },
     "impermanence": {
       "type": "Git",
@@ -61,9 +61,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "8d97452673640eb7fabe428e8b6a425bc355008b",
-      "url": "https://github.com/nmattia/naersk/archive/8d97452673640eb7fabe428e8b6a425bc355008b.tar.gz",
-      "hash": "sha256-HIdLXEFaUVE8FiaCPJbCfBMsnF+mVtDub8Jwj2BD+mk="
+      "revision": "9d4ed44d8b8cecdceb1d6fd76e74123d90ae6339",
+      "url": "https://github.com/nmattia/naersk/archive/9d4ed44d8b8cecdceb1d6fd76e74123d90ae6339.tar.gz",
+      "hash": "sha256-88IFXZ7Sa1vxbz5pty0Io5qEaMQMMUPMonLa3Ls/ss4="
     },
     "napalm": {
       "type": "Git",
@@ -87,9 +87,9 @@
       },
       "branch": "nixos-unstable",
       "submodules": false,
-      "revision": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
-      "url": "https://github.com/NixOS/nixpkgs/archive/bfc1b8a4574108ceef22f02bafcf6611380c100d.tar.gz",
-      "hash": "sha256-msG8SU5WsBUfVVa/9RPLaymvi5bI8edTavbIq3vRlhI="
+      "revision": "251b5cabd846b36d46ab9ed931357d0764195c84",
+      "url": "https://github.com/NixOS/nixpkgs/archive/251b5cabd846b36d46ab9ed931357d0764195c84.tar.gz",
+      "hash": "sha256-qiKSJWtwzfL+WEVu2EGNu6TzExLA/zEqGB7sR1lV4jY="
     },
     "nixpkgs-stable": {
       "type": "Git",
@@ -113,9 +113,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "bcdd8d37594f0e201639f55889c01c827baf5c75",
-      "url": "https://github.com/oxalica/rust-overlay/archive/bcdd8d37594f0e201639f55889c01c827baf5c75.tar.gz",
-      "hash": "sha256-roSD/OJ3x9nF+Dxr+/bLClX3U8FP9EkCQIFpzxKjSUM="
+      "revision": "9922ff9f99a6436756cbe6f5d11f9c3630e58cf0",
+      "url": "https://github.com/oxalica/rust-overlay/archive/9922ff9f99a6436756cbe6f5d11f9c3630e58cf0.tar.gz",
+      "hash": "sha256-IaiqGwmLBrR0z67t/oaS6GIFxv9V8mDY7dBTuYVTbKY="
     },
     "rustsec-advisory-db": {
       "type": "Git",
@@ -126,9 +126,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "edfd9d41f20526aa7aea01ab374d0dac1626cdb6",
-      "url": "https://github.com/RustSec/advisory-db/archive/edfd9d41f20526aa7aea01ab374d0dac1626cdb6.tar.gz",
-      "hash": "sha256-Pn4TZ+b+xQ9arFvnTmXCltyVsq5OynAm9v5pRCOyjVg="
+      "revision": "a2269190a5a337ed346abcef55a7633452f1c268",
+      "url": "https://github.com/RustSec/advisory-db/archive/a2269190a5a337ed346abcef55a7633452f1c268.tar.gz",
+      "hash": "sha256-RYzsQ6qlgHPUId9aumhdINlH8HgNL+Li6y0IT8BwfoI="
     },
     "slam": {
       "type": "Git",
@@ -140,9 +140,9 @@
       },
       "branch": "trunk",
       "submodules": false,
-      "revision": "964ebc5334eca41d8011e6dc788453bc6fcda047",
-      "url": "https://git.syndicate-lang.org/synit/slam/archive/964ebc5334eca41d8011e6dc788453bc6fcda047.tar.gz",
-      "hash": "sha256-u/59FrL3z2FUMcmUQ7cM2Ez6wPRDomUViK6rjIQB5O8="
+      "revision": "750ed5686494c027a40211fb8ad9523f6a03359a",
+      "url": "https://git.syndicate-lang.org/synit/slam/archive/750ed5686494c027a40211fb8ad9523f6a03359a.tar.gz",
+      "hash": "sha256-SMfTsORBRuTGkzObQhy6xnPCaSd0LpeUdepvcENOjVk="
     }
   },
   "version": 7

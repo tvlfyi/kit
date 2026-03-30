@@ -57,8 +57,7 @@ let
   # instead (e.g. because something is broken in unstable).
   # Use `stableNixpkgs` from above.
   stableOverlay = _unstableSelf: unstableSuper: {
-    # newer trunk fails somewhere within reqwest, trying to read a mystery file
-    trunk = stableNixpkgs.trunk;
+    tpm2-pkcs11 = stableNixpkgs.tpm2-pkcs11;
   };
 
   # Overlay to expose the nixpkgs commits we are using to other Nix code.

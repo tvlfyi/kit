@@ -98,11 +98,11 @@
         "owner": "NixOS",
         "repo": "nixpkgs"
       },
-      "branch": "nixos-23.11",
+      "branch": "nixos-25.11",
       "submodules": false,
-      "revision": "205fd4226592cc83fd4c0885a3e4c9c400efabb5",
-      "url": "https://github.com/NixOS/nixpkgs/archive/205fd4226592cc83fd4c0885a3e4c9c400efabb5.tar.gz",
-      "hash": "sha256-zwVvxrdIzralnSbcpghA92tWu2DV2lwv89xZc8MTrbg="
+      "revision": "1073dad219cb244572b74da2b20c7fe39cb3fa9e",
+      "url": "https://github.com/NixOS/nixpkgs/archive/1073dad219cb244572b74da2b20c7fe39cb3fa9e.tar.gz",
+      "hash": "sha256-tFwzTI0DdDzovdE9+Ras6CUss0yn8P9XV4Ja6RjA+nU="
     },
     "rust-overlay": {
       "type": "Git",

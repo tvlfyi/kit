@@ -35,9 +35,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "f2d3e04e278422c7379e067e323734f3e8c585a7",
-      "url": "https://github.com/nix-community/home-manager/archive/f2d3e04e278422c7379e067e323734f3e8c585a7.tar.gz",
-      "hash": "sha256-kScKj3qJDIWuN9/6PMmgy5esrTUkYinrO5VvILik/zw="
+      "revision": "f7f6a559c21dfe5e63108ded0d036ae15e6e9d57",
+      "url": "https://github.com/nix-community/home-manager/archive/f7f6a559c21dfe5e63108ded0d036ae15e6e9d57.tar.gz",
+      "hash": "sha256-pMO5JwJ/0n+q3sIivB2YUPFgbzoL+UbAhFlL9fDTMjo="
     },
     "impermanence": {
       "type": "Git",
@@ -87,9 +87,9 @@
       },
       "branch": "nixos-unstable",
       "submodules": false,
-      "revision": "8110df5ad7abf5d4c0f6fb0f8f978390e77f9685",
-      "url": "https://github.com/NixOS/nixpkgs/archive/8110df5ad7abf5d4c0f6fb0f8f978390e77f9685.tar.gz",
-      "hash": "sha256-D3Q07BbIA2KnTcSXIqqu9P586uWxN74zNoCH3h2ESHg="
+      "revision": "4c1018dae018162ec878d42fec712642d214fdfa",
+      "url": "https://github.com/NixOS/nixpkgs/archive/4c1018dae018162ec878d42fec712642d214fdfa.tar.gz",
+      "hash": "sha256-ar3rofg+awPB8QXDaFJhJ2jJhu+KqN/PRCXeyuXR76E="
     },
     "nixpkgs-stable": {
       "type": "Git",
@@ -113,9 +113,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "e8046c1d9ccadd497c2344d8fa49dab62f22f7be",
-      "url": "https://github.com/oxalica/rust-overlay/archive/e8046c1d9ccadd497c2344d8fa49dab62f22f7be.tar.gz",
-      "hash": "sha256-zPrt6oNM1r/RO5bWYaZ3hthfG9vzkr6kQdoqDd5x4Qw="
+      "revision": "08b4f3633471874c8894632ade1b78d75dbda002",
+      "url": "https://github.com/oxalica/rust-overlay/archive/08b4f3633471874c8894632ade1b78d75dbda002.tar.gz",
+      "hash": "sha256-wpSQm2PD/w4uRo2wb8utk0b5hOBkkg/CZ1xICY+qB7M="
     },
     "rustsec-advisory-db": {
       "type": "Git",
@@ -126,9 +126,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "4d2c416daab78050bd9bf5d84e3d91c43d7b04c9",
-      "url": "https://github.com/RustSec/advisory-db/archive/4d2c416daab78050bd9bf5d84e3d91c43d7b04c9.tar.gz",
-      "hash": "sha256-COucnjXdgN4H1Ze1EIAxmdrv2CtGKIAMv9Fp9GCMMf0="
+      "revision": "77cb4096516c6ac5cd0d0ddeb03fb2bbdc1ec989",
+      "url": "https://github.com/RustSec/advisory-db/archive/77cb4096516c6ac5cd0d0ddeb03fb2bbdc1ec989.tar.gz",
+      "hash": "sha256-ehYI2+TnkdX86YRk+38K8ulZTDyifBbUTFub7IQ9vSk="
     },
     "slam": {
       "type": "Git",
@@ -140,9 +140,9 @@
       },
       "branch": "trunk",
       "submodules": false,
-      "revision": "3c7011edcfac19406fa34e8fbbae8eb69dabc0a4",
-      "url": "https://git.syndicate-lang.org/synit/slam/archive/3c7011edcfac19406fa34e8fbbae8eb69dabc0a4.tar.gz",
-      "hash": "sha256-Pvbw0KrVfoezoVVcl6ouC/idX1f+abmILskQPTRO7Jk="
+      "revision": "986c301732d7dd73b1c129731e79f9b9139e9ae9",
+      "url": "https://git.syndicate-lang.org/synit/slam/archive/986c301732d7dd73b1c129731e79f9b9139e9ae9.tar.gz",
+      "hash": "sha256-H/2sxdIZUp4pF1McRqIFWX8pYAOnDnBPyhp10w8QZe8="
     }
   },
   "version": 7

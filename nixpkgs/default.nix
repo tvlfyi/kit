@@ -60,14 +60,6 @@ let
     tpm2-pkcs11 = stableNixpkgs.tpm2-pkcs11;
   };
 
-  # Overlay to expose the nixpkgs commits we are using to other Nix code.
-  commitsOverlay = _: _: {
-    nixpkgsCommits = {
-      unstable = depot.third_party.sources.nixpkgs.revision;
-      stable = depot.third_party.sources.nixpkgs-stable.revision;
-    };
-  };
-
   # Overlay to introduce a lazy `alt` namespace.
   altOverlay = final: prev: {
     alt = prev.alt or { } // {
@@ -82,7 +74,6 @@ let
 in
 import nixpkgsSrc (commonNixpkgsArgs // {
   overlays = [
-    commitsOverlay
     stableOverlay
   ] ++ (if depotOverlays then [
     depot.third_party.overlays.haskell

@@ -79,30 +79,16 @@
       "hash": "sha256-BiI5xWygriOJuNISnGAeL0KYxrEMnjgpg+7wDskVBhI="
     },
     "nixpkgs": {
-      "type": "Git",
-      "repository": {
-        "type": "GitHub",
-        "owner": "NixOS",
-        "repo": "nixpkgs"
-      },
-      "branch": "nixos-unstable-small",
-      "submodules": false,
-      "revision": "423bb2d9730c4eab9f15359b027c319d4bde0602",
-      "url": "https://github.com/NixOS/nixpkgs/archive/423bb2d9730c4eab9f15359b027c319d4bde0602.tar.gz",
-      "hash": "sha256-obYjpFUSY6GxnSpSVlaLlUZIHHWNIws2RnAwxMMuWgw="
+      "type": "Channel",
+      "name": "nixos-unstable-small",
+      "url": "https://releases.nixos.org/nixos/unstable-small/nixos-26.05pre992035.423bb2d9730c/nixexprs.tar.xz",
+      "hash": "sha256-hd9xfSq7x2wJhTBI/S5XsR8uskMrbR9wjVL82iwmSpc="
     },
     "nixpkgs-stable": {
-      "type": "Git",
-      "repository": {
-        "type": "GitHub",
-        "owner": "NixOS",
-        "repo": "nixpkgs"
-      },
-      "branch": "nixos-25.11",
-      "submodules": false,
-      "revision": "26ef669cffa904b6f6832ab57b77892a37c1a671",
-      "url": "https://github.com/NixOS/nixpkgs/archive/26ef669cffa904b6f6832ab57b77892a37c1a671.tar.gz",
-      "hash": "sha256-5c2POKPOjU40Kh0MirOdScBLG0bu9TAuPYAtPRNZMBs="
+      "type": "Channel",
+      "name": "nixos-25.11",
+      "url": "https://releases.nixos.org/nixos/25.11/nixos-25.11.10134.26ef669cffa9/nixexprs.tar.xz",
+      "hash": "sha256-hDX45JIno+cXZzUlEZ6qxAo6ToB5QZPERsHmJyI7790="
     },
     "rust-overlay": {
       "type": "Git",

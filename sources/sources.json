@@ -35,9 +35,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "c58ead12efcac436afffa93a22099a5595eb4157",
-      "url": "https://github.com/nix-community/home-manager/archive/c58ead12efcac436afffa93a22099a5595eb4157.tar.gz",
-      "hash": "sha256-w/mZkRscTatf8NWyUstli8ROzM/eopxZzi0WRjoeYkU="
+      "revision": "062581938b4a378a82dfbb294b494808157153a1",
+      "url": "https://github.com/nix-community/home-manager/archive/062581938b4a378a82dfbb294b494808157153a1.tar.gz",
+      "hash": "sha256-h/xOtrByoA/Ak1lWHn0O1lVZz4qWYbwOSLQ8YSwQO0I="
     },
     "impermanence": {
       "type": "Git",
@@ -61,9 +61,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "10d02d63fa3f296786d27f3a35a9926ee3fa6df0",
-      "url": "https://github.com/nmattia/naersk/archive/10d02d63fa3f296786d27f3a35a9926ee3fa6df0.tar.gz",
-      "hash": "sha256-3TJ7skmzAeBRkOihfHSWye7Fkuc1gP01dwa/EX1EA/E="
+      "revision": "9aa07bb0256d300219b30622d2454e85f7f3667e",
+      "url": "https://github.com/nmattia/naersk/archive/9aa07bb0256d300219b30622d2454e85f7f3667e.tar.gz",
+      "hash": "sha256-thLTFbp9D5Qknmh8q/v4FRpLGphUSijT3E86cbLYTXo="
     },
     "napalm": {
       "type": "Git",
@@ -82,15 +82,15 @@
       "type": "Channel",
       "name": "nixos-unstable",
       "artifact": "nixexprs.tar.xz",
-      "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1011622.a799d3e3886d/nixexprs.tar.xz",
-      "hash": "sha256-G5B1h4sOH4DN/RZ85xYi6zPm2MHdOrNMeUmMslZ28Qs="
+      "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1017464.567a49d1913c/nixexprs.tar.xz",
+      "hash": "sha256-rcUHdUtJEvMdNEl2Wq+YpHraHKfcer3KsBscpZEF2Yg="
     },
     "nixpkgs-stable": {
       "type": "Channel",
       "name": "nixos-25.11",
       "artifact": "nixexprs.tar.xz",
-      "url": "https://releases.nixos.org/nixos/25.11/nixos-25.11.11916.535f3e6942cb/nixexprs.tar.xz",
-      "hash": "sha256-ZLdPSj+p5DjyRj65LG3uKYccwuLxSAAwlyVh1KYpuOA="
+      "url": "https://releases.nixos.org/nixos/25.11/nixos-25.11.12168.d6df3513510a/nixexprs.tar.xz",
+      "hash": "sha256-ptZx/lEknBXBijfdXJdzJfZEQf7xq9umG3szmM3j5vo="
     },
     "rust-overlay": {
       "type": "Git",
@@ -101,9 +101,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "fe64e6b409dc513274d2941f8da13bbd0fdcf44e",
-      "url": "https://github.com/oxalica/rust-overlay/archive/fe64e6b409dc513274d2941f8da13bbd0fdcf44e.tar.gz",
-      "hash": "sha256-428T1pLXnbVeUgZx2wWEkbvl3ZORjras34ANZ3ACp5A="
+      "revision": "b7286019daa89e4e192c8913c3ec7002976034d0",
+      "url": "https://github.com/oxalica/rust-overlay/archive/b7286019daa89e4e192c8913c3ec7002976034d0.tar.gz",
+      "hash": "sha256-Ukpyd+syDTr+ky+nI+SbUnWySfiqNRzA3gzFZYWepeg="
     },
     "rustsec-advisory-db": {
       "type": "Git",
@@ -114,9 +114,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "a406e06cdd5e1809872e188112c63c5fc9a6634d",
-      "url": "https://github.com/RustSec/advisory-db/archive/a406e06cdd5e1809872e188112c63c5fc9a6634d.tar.gz",
-      "hash": "sha256-SWiahzQoPnCiOgNoqTnImneKxYIUh5tHLJ4K2aebjK0="
+      "revision": "49f543184c8992aaa3552f2730df0dbb7ec9d2fc",
+      "url": "https://github.com/RustSec/advisory-db/archive/49f543184c8992aaa3552f2730df0dbb7ec9d2fc.tar.gz",
+      "hash": "sha256-di8OUljwKRpPOYzp4gR/YxX7cumWFyZHbRmZIg2ol7Y="
     },
     "slam": {
       "type": "Git",
@@ -128,9 +128,9 @@
       },
       "branch": "trunk",
       "submodules": false,
-      "revision": "1864c3b1cb87515c6b9cf85aa2c39583176a2525",
-      "url": "https://git.syndicate-lang.org/synit/slam/archive/1864c3b1cb87515c6b9cf85aa2c39583176a2525.tar.gz",
-      "hash": "sha256-StC/m9qH9vsp9YtOiHBy03A7utQQdDToHNmFkrRlaCs="
+      "revision": "6c7f9310ba8c9d6974b8eaaf79ac71a05dea7ea1",
+      "url": "https://git.syndicate-lang.org/synit/slam/archive/6c7f9310ba8c9d6974b8eaaf79ac71a05dea7ea1.tar.gz",
+      "hash": "sha256-GxNRvDUaYfdAJmkRyfFg29ocI/95NRgxAuz2s7t7mGI="
     }
   },
   "version": 8

@@ -17,9 +17,9 @@ let
 
   # Create the case statement for a command invocations, optionally
   # overriding the `TARGET_TOOL` variable.
-  invoke = name: { attr, cmd ? null }: ''
+  invoke = name: { attrPath, cmd ? null }: ''
     ${name})
-      attr="${attr}"
+      attr=${lib.escapeShellArg (lib.concatMapStringsSep "." (attr: "\"${attr}\"") attrPath)}
       ${if cmd != null then "TARGET_TOOL=\"${cmd}\"\n;;" else ";;"}
   '';
 
@@ -33,11 +33,39 @@ fix (self:
 # Attribute set of tools that should be lazily-added to the $PATH.
 #
 # The name of each attribute is used as the command name (on $PATH).
-# It must contain the keys 'attr' (containing the Nix attribute path
-# to the tool's derivation from the top-level), and may optionally
-# contain the key 'cmd' to override the name of the binary inside the
-# derivation.
-tools:
+# It must point to an attribute set with the following keys:
+#
+# - 'attrPath' or 'attr' (either):
+#   - 'attrPath' (list): attribute path to the tools derivation from the top-level
+#   - 'attr' (string): may be used if the attribute path has length 1
+#     (may not contain any dots for historical reasons).
+# - 'cmd' (optional): overrides the name of the binary inside the derivation
+
+tools':
+
+let
+  # Convert any `attr` entries to `attrPath` and parse attribute paths
+  # in `attr` for backward compatibility.
+  tools = lib.mapAttrs
+    (name: { attr ? null, ... }@args:
+      lib.warnIf (args ? attr && args ? attrPath) "//nix/lazy-deps: ${name} specifies `attr` and `attrPath`. Ignoring the former."
+        (builtins.removeAttrs args [ "attr" ])
+      // lib.optionalAttrs (!(args ? attrPath)) {
+        attrPath =
+          let
+            parts = builtins.split "\\." attr;
+          in
+          if builtins.length parts == 1 then
+            [ attr ]
+          else
+            lib.warn
+              "//nix/lazy-deps: attribute path `${attr}` for ${name} should be specified as a list via `attrPath`"
+              (builtins.filter
+                builtins.isString
+                parts);
+      })
+    tools';
+in
 
 pkgs.runCommand "lazy-dispatch"
 {
